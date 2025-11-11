@@ -27,8 +27,8 @@ target_link_libraries(tile_level sfml-graphics)
 #### Engine ####
 add_library(engine STATIC engine/game_system.cpp 
                         engine/renderer.cpp 
-                        engine/ecm.cpp "components.cpp")
-target_include_directories(engine INTERFACE egine)
+                        engine/ecm.cpp)
+target_include_directories(engine INTERFACE engine)
 target_link_libraries(engine sfml-graphics)
 
 #### executable ####
@@ -36,10 +36,10 @@ add_executable(dorchomal
     main.cpp
     components.cpp
     scenes.cpp
-    b2_utils.cpp "components.cpp")
+    b2_utils.cpp)
 target_include_directories(dorchomal PRIVATE ${SFML_INCS} ${B2D_INCS} tile_level_loader engine)
 target_link_libraries(dorchomal sfml-graphics box2d tile_level engine)
-set_target_properties(platformer 
+set_target_properties(dorchomal 
     PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY
     ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$(Configuration)
 )

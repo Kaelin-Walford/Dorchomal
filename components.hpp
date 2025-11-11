@@ -40,7 +40,7 @@ public:
 	void render() override {}
 	void update(const float& dt) override;
 protected:
-	bool _valid_move(const sf::Vector2f&);
+	//bool _valid_move(const sf::Vector2f&);
 	float _speed;
 };
 
@@ -63,7 +63,7 @@ protected:
 public:
 	EnemyAIComponent() = delete;
 	EnemyAIComponent(Entity* p);
-	void update(const float& dt) override;
+	//void update(const float& dt) override;
 };
 
 class PickupComponent : public Component

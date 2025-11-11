@@ -7,7 +7,8 @@
 #include <iostream>
 #include <cmath>
 
-using ls = LevelSystem;
+//level_system is not proprammed yet
+//using ls = LevelSystem;
 using param = Parameters;
 using gs = GameSystem;
 
@@ -36,16 +37,19 @@ ActorMovementComponent::ActorMovementComponent(Entity* p)
 }
 
 //Checks that the new position is not inside a wall
+//Curently commented out as it requires level_system to be programed
+/*
 bool ActorMovementComponent::_valid_move(const sf::Vector2f& pos)
 {
 	return (ls::get_tile_at(pos) != ls::WALL);
 }
+*/
 
 //moves the player by taking in a vector2f
 void ActorMovementComponent::move(const sf::Vector2f& p)
 {
 	sf::Vector2f new_pos = _parent->get_position() + p;
-	if (_valid_move(new_pos))
+	if (/*_valid_move(new_pos)*/true)
 	{
 		_parent->set_position(new_pos);
 	}
@@ -103,6 +107,8 @@ EnemyAIComponent::EnemyAIComponent(Entity* p)
 	_direction = sf::Vector2f(directions[(rand() % 4)]);
 }
 
+//Enemy update also requires level_system.cpp to be programed
+/*
 void EnemyAIComponent::update(const float& dt)
 {
 	//amount to move
@@ -157,6 +163,7 @@ void EnemyAIComponent::update(const float& dt)
 	}
 	ActorMovementComponent::update(dt);
 }
+*/
 
 //Pickup Component
 //makes an entity a collectible item - will need to be modified for our game
