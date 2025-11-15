@@ -12,6 +12,7 @@
 using param = Parameters;
 using gs = GameSystem;
 
+/*
 //Shape components
 //Update keeps the SFML shape at the same position as the entity
 void ShapeComponent::update(const float& dt)
@@ -26,6 +27,7 @@ sf::Shape& ShapeComponent::get_shape() const { return *_shape; }
 
 //Links to the parent entity p - defaults to a circle shape
 ShapeComponent::ShapeComponent(Entity* p) : Component(p), _shape(std::make_shared<sf::CircleShape>()) {}
+*/
 
 //Actor movement component
 void ActorMovementComponent::update(const float& dt) {}

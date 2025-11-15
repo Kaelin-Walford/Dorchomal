@@ -10,6 +10,7 @@ using param = Parameters;
 namespace b2 = box2d;
 
 std::shared_ptr<Scene> Scenes::physics;
+std::shared_ptr<Scene> Scenes::kaelinsPlayground;
 
 //Load the physics scene, which is a scene that has cubes fall from the sky
 void PhysicsScene::load()
@@ -108,4 +109,70 @@ void PhysicsScene::unload()
 	}
 	bodies.clear();
 	b2DestroyWorld(world_id);
+}
+
+/*
+* Kaelins Playground Scene
+* This is just a testing scene for all my components
+*/
+
+//Loads the Playground scene
+void KaelinsPlayground::load()
+{
+	//creates the box2D world
+	b2WorldDef world_def = b2DefaultWorldDef();
+	//sets the gravity for the world
+	world_def.gravity = b2Vec2({ 0.0f, param::g });
+	//identifies the physics simulation
+	world_id = b2CreateWorld(&world_def);
+
+	sf::Vector2f walls[] = {
+		// Top
+		sf::Vector2f(param::game_width * .5f, 5.f), sf::Vector2f(param::game_width, 10.f),
+		// Bottom
+		sf::Vector2f(param::game_width * .5f, param::game_height - 5.f), sf::Vector2f(param::game_width, 10.f),
+		// left
+		sf::Vector2f(5.f, param::game_height * .5f), sf::Vector2f(10.f, param::game_height),
+		// right
+		sf::Vector2f(param::game_width - 5.f, param::game_height * .5f), sf::Vector2f(10.f, param::game_height)
+	};
+
+	// Build Walls
+	for (int i = 0; i < 7; i += 2)
+	{
+		// Create SFML shapes for each wall
+		std::shared_ptr<sf::RectangleShape> s = std::make_shared<sf::RectangleShape>();
+		s->setPosition(walls[i]);
+		s->setSize(walls[i + 1]);
+		s->setOrigin(walls[i + 1] / 2.f);
+		s->setFillColor(sf::Color::White);
+		sprites.push_back(s);
+
+		// Create a static physics body for the wall
+		b2BodyId b = b2::create_physics_box(world_id, false, s);
+		bodies.push_back(b);
+	}
+}
+
+void KaelinsPlayground::update(const float &dt)
+{
+	Scene::update(dt);
+	_entities.update(dt);
+}
+
+void KaelinsPlayground::render()
+{
+	for (std::shared_ptr<sf::RectangleShape> sprite : sprites)
+	{
+		Renderer::queue(sprite.get());
+	}
+
+	Scene::render();
+	_entities.render();
+}
+
+void KaelinsPlayground::unload()
+{
+	Scene::unload();
+	_player.reset();
 }

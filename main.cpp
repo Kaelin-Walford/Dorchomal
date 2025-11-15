@@ -10,7 +10,9 @@ int main()
 {
 	Scenes::physics = std::make_shared<PhysicsScene>();
 	Scenes::physics->load();
-	GameSystem::set_active_scene(Scenes::physics);
+	Scenes::kaelinsPlayground = std::make_shared<KaelinsPlayground>();
+	Scenes::kaelinsPlayground->load();
+	GameSystem::set_active_scene(Scenes::kaelinsPlayground);
 	GameSystem::start(param::game_width, param::game_height, "physics", param::time_step);
 	return 0;
 }
