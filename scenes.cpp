@@ -1,10 +1,14 @@
 #define _USE_MATH_DEFINES
 #include <cmath>
+#include <iostream>
 
 #include "scenes.hpp"
 #include "game_parameters.hpp"
 #include "renderer.hpp"
 #include "b2_utils.hpp"
+#include "graphics_cmps.hpp"
+#include "physics_cmps.hpp"
+#include "physics.hpp"
 
 using param = Parameters;
 namespace b2 = box2d;
@@ -119,13 +123,16 @@ void PhysicsScene::unload()
 //Loads the Playground scene
 void KaelinsPlayground::load()
 {
+	/*
 	//creates the box2D world
 	b2WorldDef world_def = b2DefaultWorldDef();
 	//sets the gravity for the world
 	world_def.gravity = b2Vec2({ 0.0f, param::g });
 	//identifies the physics simulation
 	world_id = b2CreateWorld(&world_def);
+	*/
 
+	
 	sf::Vector2f walls[] = {
 		// Top
 		sf::Vector2f(param::game_width * .5f, 5.f), sf::Vector2f(param::game_width, 10.f),
@@ -137,6 +144,7 @@ void KaelinsPlayground::load()
 		sf::Vector2f(param::game_width - 5.f, param::game_height * .5f), sf::Vector2f(10.f, param::game_height)
 	};
 
+	
 	// Build Walls
 	for (int i = 0; i < 7; i += 2)
 	{
@@ -149,15 +157,28 @@ void KaelinsPlayground::load()
 		sprites.push_back(s);
 
 		// Create a static physics body for the wall
-		b2BodyId b = b2::create_physics_box(world_id, false, s);
+		b2BodyId b = b2::create_physics_box(Physics::get_world_id(), false, s);
 		bodies.push_back(b);
 	}
+
+	//Create the player
+	_player = make_entity();
+	_player->set_position(sf::Vector2f(100.0f, 100.0f));
+
+	std::shared_ptr<ShapeComponent> shape = _player->add_component<ShapeComponent>();
+	shape->set_shape<sf::RectangleShape>(sf::Vector2f(param::player_size[0], param::player_size[1]));
+	shape->get_shape().setFillColor(sf::Color::Yellow);
+	shape->get_shape().setOrigin(sf::Vector2f(param::player_size[0] / 2.f, param::player_size[1] / 2.f));
+
+	std::shared_ptr<PlayerPhysicsComponent> cmp = _player->add_component<PlayerPhysicsComponent>(sf::Vector2f(param::player_size[0], param::player_size[1]));
+	cmp->create_capsule_shape(sf::Vector2f(param::player_size[0], param::player_size[1]), param::player_weight, param::player_friction, param::player_restitution);
 }
 
 void KaelinsPlayground::update(const float &dt)
 {
 	Scene::update(dt);
 	_entities.update(dt);
+	//std::cout << _entities[0];
 }
 
 void KaelinsPlayground::render()

@@ -43,7 +43,7 @@ b2BodyId box2d::create_physics_box(b2WorldId& world_id, const bool dynamic, cons
 	//Friction afects the objects ability to slide
 	shape_def.material.friction = dynamic ? 0.8f : 1.f;
 	//Restitution is the bounciness of the object
-	shape_def.material.restitution = 1.0f;
+	shape_def.material.restitution = 0.0f;
 
 	//This defines the shape of the box2D, its halved cause Box2D uses half width and height
 	b2Polygon polygon = b2MakeBox(sv2_to_bv2(size).x * 0.5f, sv2_to_bv2(size).y * 0.5f);
