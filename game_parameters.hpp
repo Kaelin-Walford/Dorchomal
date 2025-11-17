@@ -1,5 +1,6 @@
 #pragma once
 #define M_PI 3.14159265358979323846
+#include <SFML/Graphics.hpp>
 
 struct Parameters
 {
@@ -26,4 +27,18 @@ struct Parameters
 	static constexpr float player_max_vel[2] = { 200.f,400.f };
 	static constexpr float player_friction = 0.f;
 	static constexpr float player_restitution = 0.0f;
+
+	//Controls
+	static constexpr sf::Keyboard::Key move_left = sf::Keyboard::A;
+	static constexpr sf::Keyboard::Key move_right = sf::Keyboard::D;
+	static constexpr sf::Keyboard::Key move_jump = sf::Keyboard::Space;
+	static constexpr sf::Keyboard::Key look_up = sf::Keyboard::W;
+	static constexpr sf::Keyboard::Key look_down = sf::Keyboard::S;
+	static constexpr sf::Keyboard::Key move_dash = sf::Keyboard::LShift;
+	static constexpr sf::Keyboard::Key attack_fire_ball = sf::Keyboard::LControl;
+	static constexpr sf::Keyboard::Key attack_melee = sf::Keyboard::E;
+
+	//Dash properties
+	static constexpr float dash_duration = 0.5f;
+	static constexpr float dash_speed = 1500.0f;
 };
