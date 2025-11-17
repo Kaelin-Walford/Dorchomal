@@ -1,12 +1,15 @@
 #include <iostream>
 #include "game_system.hpp"
 #include "renderer.hpp"
+#include "physics.hpp"
 
 std::shared_ptr<Scene> GameSystem::_active_scene;
+bool GameSystem::_physics_enabled;
 
 void GameSystem::start(unsigned int width, unsigned int height,
-	const std::string& name, const float& time_step)
+	const std::string& name, const float& time_step, bool physics_enabled)
 {
+	_physics_enabled = physics_enabled;
 	sf::RenderWindow window(sf::VideoMode({ width, height }), name);
 	_init();
 	Renderer::initialise(window);
@@ -65,6 +68,10 @@ void GameSystem::clean()
 void GameSystem::_update(const float& dt)
 {
 	_active_scene->update(dt);
+	if (_physics_enabled)
+	{
+		Physics::update(Physics::time_step);
+	}
 	Renderer::update(dt);
 }
 
@@ -96,4 +103,11 @@ void Scene::render()
 void Scene::unload()
 {
 	_entities.list.clear();
+}
+
+const std::shared_ptr<Entity>& Scene::make_entity()
+{
+	std::shared_ptr<Entity> entity = std::make_shared<Entity>();
+	_entities.list.push_back(entity);
+	return _entities.list.back();
 }
