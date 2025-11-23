@@ -5,6 +5,7 @@
 
 std::shared_ptr<Scene> GameSystem::_active_scene;
 bool GameSystem::_physics_enabled;
+sf::Vector2i GameSystem::_mouse_position;
 
 void GameSystem::start(unsigned int width, unsigned int height,
 	const std::string& name, const float& time_step, bool physics_enabled)
@@ -13,6 +14,8 @@ void GameSystem::start(unsigned int width, unsigned int height,
 	sf::RenderWindow window(sf::VideoMode({ width, height }), name);
 	_init();
 	Renderer::initialise(window);
+	//makes the mouse pointer invisible
+	window.setMouseCursorVisible(false);
 	sf::Event event;
 	while (window.isOpen())
 	{
@@ -37,6 +40,7 @@ void GameSystem::start(unsigned int width, unsigned int height,
 		window.clear();
 
 		//Prepare for new frame
+		_mouse_position = sf::Mouse::getPosition(window);
 		_update(dt);
 		_render();
 		sf::sleep(sf::seconds(time_step));

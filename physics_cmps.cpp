@@ -3,6 +3,8 @@
 #include "physics.hpp"
 #include "game_parameters.hpp"
 #include "level_system.hpp"
+#include "game_system.hpp"
+#include "graphics_cmps.hpp"
 #include <algorithm>
 #include <cmath>
 
@@ -124,10 +126,12 @@ void PhysicsComponent::update(const float& dt)
 	_parent->set_position(ph::invert_height(ph::bv2_to_sv2(b2Body_GetPosition(_body_id)),
 		param::game_height));
 	_parent->set_rotation((180 / M_PI) * b2Rot_GetAngle(b2Body_GetRotation(_body_id)));
+
+	//update the entities shape
+	_entities.update(dt);
 }
 
-PhysicsComponent::PhysicsComponent(Entity* p, bool dyn)
-	: Component(p), _dynamic(dyn)
+PhysicsComponent::PhysicsComponent(Entity* p, bool dyn) : Component(p), _dynamic(dyn)
 {
 	//
 	b2BodyDef body_def = b2DefaultBodyDef();
@@ -170,6 +174,13 @@ void PhysicsComponent::teleport(const sf::Vector2f& v)
 	b2Body_SetTransform(_body_id, ph::sv2_to_bv2(ph::invert_height(v, param::game_height)), rot);
 }
 
+//returns the position of the physics object
+const sf::Vector2f PhysicsComponent::get_position() const
+{
+	//b2Vec2 pos = b2Body_GetPosition(_body_id);
+	return ph::invert_height(ph::bv2_to_sv2(b2Body_GetPosition(_body_id)), param::game_height);
+}
+
 //returns the velocity of the object
 const sf::Vector2f PhysicsComponent::get_velocity() const
 {
@@ -205,7 +216,10 @@ PhysicsComponent::~PhysicsComponent()
 	_body_id = b2_nullBodyId;
 }
 
-void PhysicsComponent::render() {}
+void PhysicsComponent::render()
+{
+	_entities.render();
+}
 
 //Adds a force to the object
 void PhysicsComponent::impulse(const sf::Vector2f& i)
@@ -268,6 +282,15 @@ void PhysicsComponent::create_capsule_shape(const sf::Vector2f& size, float mass
 	_shape_id = b2CreateCapsuleShape(_body_id, &shape_def, &capsule);
 }
 
+//Function to create an entity
+const std::shared_ptr<Entity>& PhysicsComponent::make_entity()
+{
+	std::shared_ptr<Entity> entity = std::make_shared<Entity>();
+	_entities.list.push_back(entity);
+	return _entities.list.back();
+}
+
+
 /*
 *	Player Physics Component
 */
@@ -282,6 +305,16 @@ PlayerPhysicsComponent::PlayerPhysicsComponent(Entity* p, const sf::Vector2f& si
 	_is_dashing = false;
 	_facing_right = true;
 	_dash_current_duration = 0.f;
+
+	//define the fireball target shape
+	_target = make_entity();
+	_target->set_position(sf::Vector2f(0, 0));
+	_target->set_visible(false);
+
+	std::shared_ptr<ShapeComponent> shape = _target->add_component<ShapeComponent>();
+	shape->set_shape<sf::RectangleShape>(sf::Vector2f(param::fireball_target_size[0], param::fireball_target_size[1]));
+	shape->get_shape().setFillColor(sf::Color::Magenta);
+	//shape->get_shape().setOrigin(sf::Vector2f(param::player_size[0] / 2.f, param::player_size[1] / 2.f));
 
 	//Prevents the player from rotating and sleeping
 	b2Body_EnableSleep(_body_id, false);
@@ -329,6 +362,7 @@ void PlayerPhysicsComponent::update(const float& dt)
 	//std::cout << _friction << "\n";
 	const sf::Vector2f pos = _parent->get_position();
 	b2Vec2 b2_pos = ph::sv2_to_bv2(ph::invert_height(pos, param::game_height));
+	//std::cout << pos.x << " " << pos.y << " " << GameSystem::get_mouse_position().x << " " << GameSystem::get_mouse_position().y << "\n";
 
 	//Check if the player in in the air or not
 	_grounded = is_grounded();
@@ -355,11 +389,13 @@ if (pos.y > ls::get_height() * param::tile_size) {
 			{
 				//impulse({ (dt * _ground_speed), 0 });
 				set_velocity(sf::Vector2f(_ground_speed, get_velocity().y));
+				_facing_right = true;
 			}
 			else
 			{
 				//impulse({ -(dt * _ground_speed), 0 });
 				set_velocity(sf::Vector2f(-_ground_speed, get_velocity().y));
+				_facing_right = false;
 			}
 		}
 		else
@@ -446,6 +482,23 @@ if (pos.y > ls::get_height() * param::tile_size) {
 			}
 		}
 
+		// Handle Fireball
+		if (sf::Keyboard::isKeyPressed(param::attack_fire_ball))
+		{
+			_target->set_visible(true);
+			_target->set_position(sf::Vector2f(GameSystem::get_mouse_position()));
+			//std::cout << GameSystem::get_mouse_position().x << " " << GameSystem::get_mouse_position().y << "\n";
+			if (sf::Mouse::isButtonPressed(param::attack_fire_ball_fire))
+			{
+				fireball(_target->get_position(), pos);
+			}
+		}
+		else
+		{
+			_target->set_visible(false);
+		}
+
+
 		
 	}
 	else
@@ -486,15 +539,60 @@ void PlayerPhysicsComponent::dash(bool rightSide, bool topSide)
 {
 	float angle = M_PI / 4; //45 degrees
 	float hypotenuse = sqrt(pow(param::dash_speed, 2) + pow(param::dash_speed, 2) - (2 * param::dash_speed * param::dash_speed * cos(angle)));
-	std::cout << hypotenuse << "    " << cos(angle) << "\n";
+	//std::cout << hypotenuse << "    " << cos(angle) << "\n";
 
 	float x = cos(angle) * hypotenuse;
 	float y = topSide ? x : -x;
 	x = rightSide ? x : -x;
 
-	std::cout << x << "			" << y << "\n";
+	//std::cout << x << "			" << y << "\n";
 
 	set_velocity(sf::Vector2f(x, y));
+}
+
+//Function for the player to cast a fireball
+void PlayerPhysicsComponent::fireball(sf::Vector2f target_position, sf::Vector2f player_position)
+{
+	//Player position
+	float a = player_position.x;
+	float b = player_position.y;
+
+	//target position
+	float x = target_position.x;
+	float y = target_position.y;
+
+	float by = b - y;
+	float xa= x - a;
+
+	//std::cout << a << " " << b << " " << x << " " << y << "\n";
+
+	//gets the angle to send the fireball towards
+	float angle = atan((b - y) / (x - a));
+	//angle = atan(1);
+	
+
+	if (angle < 0)
+	{
+		angle = -angle;
+	}
+	//std::cout << (angle * 180) / M_PI << "\n";
+
+	//gets the x and y velocity
+	float velocityY = param::fireball_velocity * sin(angle);
+	float velocityX = param::fireball_velocity * cos(angle);
+
+	if (by < 0)
+	{
+		velocityY = -velocityY;
+	}
+	if (xa < 0)
+	{
+		velocityX = -velocityX;
+	}
+
+	//std::cout << velocityX << "   " << velocityY << "\n";
+	set_velocity(sf::Vector2f(velocityX, velocityY));
+	//set_gravity_scale(0.f);
 }
 
 /*

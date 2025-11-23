@@ -30,6 +30,7 @@ public:
 	int get_contacts(std::array<b2ContactData, 10>& contacts) const;
 	const sf::Vector2f get_velocity() const;
 	const float get_gravity_scale() const;
+	const sf::Vector2f get_position() const;
 	void set_restitution(float r);
 	void set_friction(float r);
 	void set_mass(float m);
@@ -43,6 +44,10 @@ public:
 	void create_box_shape(const sf::Vector2f& size, float mass, float friction, float restitution);
 	void create_capsule_shape(const sf::Vector2f& size, float mass, float friction, float restitution);
 
+	//entity functions
+	const std::shared_ptr<Entity>& make_entity();
+	std::vector<std::shared_ptr<Entity>>& get_entities() { return _entities.list; }
+
 	~PhysicsComponent() override;
 protected:
 	b2BodyId _body_id;
@@ -52,6 +57,9 @@ protected:
 	float _restitution;
 	float _mass;
 	bool _facing_right;
+
+	//entities
+	EntityManager _entities;
 };
 
 //The class that handles player controls
@@ -65,16 +73,24 @@ protected:
 	bool _can_dash;
 	bool _is_dashing;
 	float _dash_current_duration;
+	std::shared_ptr<Entity> _target;
 
 	bool is_grounded() const;
 
 public:
 	void update(const float &dt) override;
 	void dash(bool rightSide, bool topSide);
+	void fireball(sf::Vector2f target_position, sf::Vector2f player_position);
 
 	explicit PlayerPhysicsComponent(Entity* p, const sf::Vector2f& size);
 
 	PlayerPhysicsComponent() = delete;
+};
+
+//The class used to create a fireball
+class FireballComponent : Component
+{
+
 };
 
 /*
