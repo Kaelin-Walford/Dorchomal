@@ -24,15 +24,24 @@ public:
 	void render() override;
 	void load()override;
 	void unload() override;
+
+	void toggle_pause();
+	bool is_paused() const { return _is_paused; }
+	void set_paused(bool paused) { _is_paused = paused; }
+
 private:
 	b2WorldId world_id;
 	std::vector<b2BodyId> bodies;
 	std::vector<std::shared_ptr<sf::RectangleShape>> sprites;
 	std::shared_ptr<Entity> _player;
+	bool _is_paused = false;
 };
+
+class MenuScene;
 
 struct Scenes
 {
 	static std::shared_ptr<Scene> physics;
-	static std::shared_ptr<Scene> kaelinsPlayground;
+	static std::shared_ptr<KaelinsPlayground> kaelinsPlayground;
+	static std::shared_ptr<MenuScene> menuScene;
 };

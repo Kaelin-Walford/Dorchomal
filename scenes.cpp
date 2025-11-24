@@ -3,6 +3,7 @@
 #include <iostream>
 
 #include "scenes.hpp"
+#include "UI/menu_scene.hpp"
 #include "game_parameters.hpp"
 #include "renderer.hpp"
 #include "b2_utils.hpp"
@@ -14,7 +15,8 @@ using param = Parameters;
 namespace b2 = box2d;
 
 std::shared_ptr<Scene> Scenes::physics;
-std::shared_ptr<Scene> Scenes::kaelinsPlayground;
+std::shared_ptr<KaelinsPlayground> Scenes::kaelinsPlayground;
+std::shared_ptr<MenuScene> Scenes::menuScene;
 
 //Load the physics scene, which is a scene that has cubes fall from the sky
 void PhysicsScene::load()
@@ -176,10 +178,33 @@ void KaelinsPlayground::load()
 
 void KaelinsPlayground::update(const float &dt)
 {
-	Scene::update(dt);
-	_entities.update(dt);
-	//std::cout << _entities[0];
+	if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape))
+	{
+		static bool escPressed = false;
+		if (!escPressed)
+		{
+			toggle_pause();
+			escPressed = true;
+		}
+	}
+	else
+	{
+		static bool escPressed = false;
+		escPressed = false;
+	}
+
+	// Only update game if not paused
+	if (!_is_paused)
+	{
+		Scene::update(dt);
+		_entities.update(dt);
+	}
 }
+
+
+
+
+
 
 void KaelinsPlayground::render()
 {
@@ -190,6 +215,28 @@ void KaelinsPlayground::render()
 
 	Scene::render();
 	_entities.render();
+
+	if (_is_paused && Scenes::menuScene)
+	{
+		Scenes::menuScene->render();
+	}
+}
+
+void KaelinsPlayground::toggle_pause()
+{
+	_is_paused = !_is_paused;
+
+	if (Scenes::menuScene)
+	{
+		if (_is_paused)
+		{
+			Scenes::menuScene->show_pause_menu();
+		}
+		else
+		{
+			Scenes::menuScene->hide_menus();
+		}
+	}
 }
 
 void KaelinsPlayground::unload()
