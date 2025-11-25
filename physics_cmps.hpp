@@ -3,6 +3,9 @@
 #include <array>
 #include <box2d/box2d.h>
 
+//forward declaration
+class FireballComponent;
+
 //The platform component is all the static geometry in the world
 class PlatformComponent : public Component
 {
@@ -41,8 +44,8 @@ public:
 	void set_velocity(const sf::Vector2f& v);
 	void set_gravity_scale(float gravity);
 	void teleport(const sf::Vector2f& v);
-	void create_box_shape(const sf::Vector2f& size, float mass, float friction, float restitution);
-	void create_capsule_shape(const sf::Vector2f& size, float mass, float friction, float restitution);
+	void create_box_shape(const sf::Vector2f& size, float mass, float friction, float restitution, int filter);
+	void create_capsule_shape(const sf::Vector2f& size, float mass, float friction, float restitution, int filter);
 
 	//entity functions
 	const std::shared_ptr<Entity>& make_entity();
@@ -56,10 +59,13 @@ protected:
 	float _friction;
 	float _restitution;
 	float _mass;
+	int _filter;
 	bool _facing_right;
+	bool _can_use_fireball;
 
 	//entities
 	EntityManager _entities;
+	std::vector<std::shared_ptr<FireballComponent>> _fireball_components;
 };
 
 //The class that handles player controls
@@ -80,7 +86,7 @@ protected:
 public:
 	void update(const float &dt) override;
 	void dash(bool rightSide, bool topSide);
-	void fireball(sf::Vector2f target_position, sf::Vector2f player_position);
+	sf::Vector2f fireball(sf::Vector2f target_position, sf::Vector2f player_position);
 
 	explicit PlayerPhysicsComponent(Entity* p, const sf::Vector2f& size);
 
@@ -88,9 +94,21 @@ public:
 };
 
 //The class used to create a fireball
-class FireballComponent : Component
+class FireballComponent : public Component
 {
+public:
+	FireballComponent(Entity* p, sf::Vector2f position, sf::Vector2f velocity);
+	int get_contacts(std::array<b2ContactData, 10>& contacts) const;
+	void update(const float& dt) override;
+	void render() override;
+	void create_box_shape(const sf::Vector2f& size);
+	void create_capsule_shape(const sf::Vector2f& size);
 
+	~FireballComponent() override;
+
+protected:
+	b2BodyId _body_id;
+	b2ShapeId _shape_id;
 };
 
 /*

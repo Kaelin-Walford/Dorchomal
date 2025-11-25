@@ -137,11 +137,13 @@ PhysicsComponent::PhysicsComponent(Entity* p, bool dyn) : Component(p), _dynamic
 	b2BodyDef body_def = b2DefaultBodyDef();
 	//Is Dynamic(moving), or static(Stationary) - the ? is a short-hand if else statement where it returns the first value if true and second if false
 	// i.e. if dynamic is true then it returns b2_dynamicBody, if false then b2_staticBody
-	body_def.type = _dynamic ? b2_dynamicBody : b2_staticBody;
+	body_def.type = _dynamic ? b2_dynamicBody : b2_kinematicBody;
 	body_def.position = ph::sv2_to_bv2(ph::invert_height(_parent->get_position(), param::game_height));
 
 	//Create the body
 	_body_id = b2CreateBody(ph::get_world_id(), &body_def);
+
+	_can_use_fireball = true;
 }
 
 //Restitution is the bounciness of the object
@@ -249,7 +251,7 @@ int PhysicsComponent::get_contacts(std::array<b2ContactData, 10>& contacts) cons
 }
 
 //Function to create a box shape
-void PhysicsComponent::create_box_shape(const sf::Vector2f& size, float mass, float friction, float restitution)
+void PhysicsComponent::create_box_shape(const sf::Vector2f& size, float mass, float friction, float restitution, int filter)
 {
 	_mass = mass;
 	_friction = friction;
@@ -259,21 +261,24 @@ void PhysicsComponent::create_box_shape(const sf::Vector2f& size, float mass, fl
 	shape_def.density = _dynamic ? _mass : 0.f;
 	shape_def.material.friction = _friction;
 	shape_def.material.restitution = _restitution;
+	shape_def.filter.groupIndex = _filter;
 	b2Polygon polygon = b2MakeBox(ph::sv2_to_bv2(size).x * 0.5f, ph::sv2_to_bv2(size).y * 0.5f);
 	_shape_id = b2CreatePolygonShape(_body_id, &shape_def, &polygon);
 }
 
 //function to create a capsule shape
-void PhysicsComponent::create_capsule_shape(const sf::Vector2f& size, float mass, float friction, float restitution)
+void PhysicsComponent::create_capsule_shape(const sf::Vector2f& size, float mass, float friction, float restitution, int filter)
 {
 	_mass = mass;
 	_friction = friction;
 	_restitution = restitution;
+	_filter = filter;
 	//Create the fixture shape
 	b2ShapeDef shape_def = b2DefaultShapeDef();
 	shape_def.density = _dynamic ? _mass : 0.f;
 	shape_def.material.friction = _friction;
 	shape_def.material.restitution = _restitution;
+	shape_def.filter.groupIndex = _filter;
 	b2Vec2 b2_size = ph::sv2_to_bv2(size);
 	b2Capsule capsule;
 	capsule.center1 = { 0,b2_size.y * 0.5f - b2_size.x * 0.5f };
@@ -319,6 +324,7 @@ PlayerPhysicsComponent::PlayerPhysicsComponent(Entity* p, const sf::Vector2f& si
 	//Prevents the player from rotating and sleeping
 	b2Body_EnableSleep(_body_id, false);
 	b2Body_SetFixedRotation(_body_id, true);
+	//b2Body_EnableContactEvents(_body_id, false);
 	//Bullet items have higher-res collision detection
 	// b2Body_SetBullet(_body_id,true);
 
@@ -378,6 +384,12 @@ if (pos.y > ls::get_height() * param::tile_size) {
 
 	//check to only allow player movement while they are not dashing
 	//dstd::cout << get_gravity_scale();
+
+	/*if (!_grounded)
+	{
+		set_velocity(sf::Vector2f(0, -98));
+	}*/
+
 	if (!_is_dashing)
 	{
 		//Handles left and right movement
@@ -488,9 +500,25 @@ if (pos.y > ls::get_height() * param::tile_size) {
 			_target->set_visible(true);
 			_target->set_position(sf::Vector2f(GameSystem::get_mouse_position()));
 			//std::cout << GameSystem::get_mouse_position().x << " " << GameSystem::get_mouse_position().y << "\n";
-			if (sf::Mouse::isButtonPressed(param::attack_fire_ball_fire))
+			if (sf::Mouse::isButtonPressed(param::attack_fire_ball_fire) && _can_use_fireball)
 			{
-				fireball(_target->get_position(), pos);
+				sf::Vector2f velocity = fireball(_target->get_position(), pos);
+
+				std::shared_ptr<Entity> fireball;
+
+				fireball = make_entity();
+				fireball->set_position(sf::Vector2f(pos.x, pos.y - 1));
+				fireball->set_visible(true);
+
+				std::shared_ptr<ShapeComponent> shape = fireball->add_component<ShapeComponent>();
+				shape->set_shape<sf::RectangleShape>(sf::Vector2f(param::player_size[0], param::player_size[1]));
+				shape->get_shape().setFillColor(sf::Color::Blue);
+
+				std::shared_ptr<FireballComponent> fireball_component = fireball->add_component<FireballComponent>(sf::Vector2f(pos.x, pos.y - 1), velocity);
+				fireball_component->create_capsule_shape(sf::Vector2f(param::player_size[0], param::player_size[1]));
+
+				_can_use_fireball = false;
+				//_entities.list.push_back(entity);
 			}
 		}
 		else
@@ -531,6 +559,19 @@ if (pos.y > ls::get_height() * param::tile_size) {
 		_can_dash = true;
 	}
 
+	//Delete fireballs
+	for each(std::shared_ptr<Entity> entity in get_entities())
+	{
+		auto components = entity->get_components<FireballComponent>();
+		for each(std::shared_ptr<FireballComponent> component in components)
+		{
+			if (component->is_for_deletion())
+			{
+				entity->set_for_delete();
+			}
+		}
+	}
+
 	PhysicsComponent::update(dt);
 }
 
@@ -551,7 +592,7 @@ void PlayerPhysicsComponent::dash(bool rightSide, bool topSide)
 }
 
 //Function for the player to cast a fireball
-void PlayerPhysicsComponent::fireball(sf::Vector2f target_position, sf::Vector2f player_position)
+sf::Vector2f PlayerPhysicsComponent::fireball(sf::Vector2f target_position, sf::Vector2f player_position)
 {
 	//Player position
 	float a = player_position.x;
@@ -591,8 +632,87 @@ void PlayerPhysicsComponent::fireball(sf::Vector2f target_position, sf::Vector2f
 	}
 
 	//std::cout << velocityX << "   " << velocityY << "\n";
-	set_velocity(sf::Vector2f(velocityX, velocityY));
+	//set_velocity(sf::Vector2f(velocityX, velocityY));
+	return sf::Vector2f(velocityX, velocityY);
 	//set_gravity_scale(0.f);
+}
+
+/*
+*	Fireball Physics Component
+*/
+
+FireballComponent::FireballComponent(Entity* p, sf::Vector2f position, sf::Vector2f velocity) : Component(p)
+{
+	b2BodyDef body_def = b2DefaultBodyDef();
+	//Is Dynamic(moving), or static(Stationary) - the ? is a short-hand if else statement where it returns the first value if true and second if false
+	// i.e. if dynamic is true then it returns b2_dynamicBody, if false then b2_staticBody
+	body_def.type = b2_dynamicBody;
+	body_def.position = ph::sv2_to_bv2(ph::invert_height(_parent->get_position(), param::game_height));
+
+	//Create the body
+	_body_id = b2CreateBody(ph::get_world_id(), &body_def);
+	b2Body_SetGravityScale(_body_id, 0.0f);
+
+	//set the velocity for the fireball
+	b2Body_SetLinearVelocity(_body_id, ph::sv2_to_bv2(velocity));
+}
+
+void FireballComponent::update(const float& dt)
+{
+	std::array<b2ContactData, 10> contacts;
+	int count = get_contacts(contacts);
+	if (count > 0)
+	{
+		std::cout << "DELETE";
+		_for_deletion = true;
+	}
+
+	_parent->set_position(ph::invert_height(ph::bv2_to_sv2(b2Body_GetPosition(_body_id)),
+		param::game_height));
+	_parent->set_rotation((180 / M_PI) * b2Rot_GetAngle(b2Body_GetRotation(_body_id)));
+}
+
+void FireballComponent::render()
+{
+
+}
+
+int FireballComponent::get_contacts(std::array<b2ContactData, 10>& contacts) const
+{
+	int contact_count = b2Body_GetContactData(_body_id, contacts.data(), 10);
+	return contact_count;
+}
+
+//Function to create a box shape
+void FireballComponent::create_box_shape(const sf::Vector2f& size)
+{
+	//Create the fixture shape
+	b2ShapeDef shape_def = b2DefaultShapeDef();
+	shape_def.filter.groupIndex = -1;
+	b2Polygon polygon = b2MakeBox(ph::sv2_to_bv2(size).x * 0.5f, ph::sv2_to_bv2(size).y * 0.5f);
+	_shape_id = b2CreatePolygonShape(_body_id, &shape_def, &polygon);
+}
+
+//function to create a capsule shape
+void FireballComponent::create_capsule_shape(const sf::Vector2f& size)
+{
+	//Create the fixture shape
+	b2ShapeDef shape_def = b2DefaultShapeDef();
+	shape_def.filter.groupIndex = -1;
+	b2Vec2 b2_size = ph::sv2_to_bv2(size);
+	b2Capsule capsule;
+	capsule.center1 = { 0,b2_size.y * 0.5f - b2_size.x * 0.5f };
+	capsule.center2 = { 0,-b2_size.y * 0.5f + b2_size.x * 0.5f };
+	capsule.radius = b2_size.x * 0.5f;
+	_shape_id = b2CreateCapsuleShape(_body_id, &shape_def, &capsule);
+}
+
+FireballComponent::~FireballComponent()
+{
+	b2DestroyShape(_shape_id, true);
+	_shape_id = b2_nullShapeId;
+	b2DestroyBody(_body_id);
+	_body_id = b2_nullBodyId;
 }
 
 /*
