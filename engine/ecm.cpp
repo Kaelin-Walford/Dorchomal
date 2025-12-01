@@ -1,5 +1,6 @@
 #include "ecm.hpp"
 #include "renderer.hpp"
+#include <iostream>
 
 void EntityManager::update(const float& dt)
 {
@@ -115,4 +116,7 @@ bool Component::is_for_deletion() const
 	return _for_deletion;
 }
 
-Component::~Component() {}
+Component::~Component()
+{
+	std::cout << "Destroying ShapeComponent" << std::endl;
+}

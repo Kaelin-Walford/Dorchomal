@@ -31,6 +31,11 @@ b2ContactEvents Physics::get_contact_events()
 	return b2World_GetContactEvents(_world_id);
 }
 
+b2SensorEvents Physics::get_sensor_events()
+{
+	return b2World_GetSensorEvents(_world_id);
+}
+
 /*
 * Functions to allow Box2D to talk with SFML
 * - Box2D and SFML don't use the same units or orientation
@@ -40,7 +45,7 @@ b2ContactEvents Physics::get_contact_events()
 //Convert from b2Vec2 to a Vector2f
 const sf::Vector2f Physics::bv2_to_sv2(const b2Vec2& in)
 {
-	return sf::Vector2f(in.x * physics_scale, (in.y * physics_scale));
+	return sf::Vector2f(in.x * physics_scale, in.y * physics_scale);
 }
 //Convert from Vector2f to a b2Vec2
 const b2Vec2 Physics::sv2_to_bv2(const sf::Vector2f& in)

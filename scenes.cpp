@@ -1,6 +1,7 @@
 #define _USE_MATH_DEFINES
 #include <cmath>
 #include <iostream>
+#include <cstring>
 
 #include "scenes.hpp"
 #include "game_parameters.hpp"
@@ -9,6 +10,9 @@
 #include "graphics_cmps.hpp"
 #include "physics_cmps.hpp"
 #include "physics.hpp"
+
+//remove
+#include "ecm.hpp"
 
 using param = Parameters;
 namespace b2 = box2d;
@@ -123,16 +127,9 @@ void PhysicsScene::unload()
 //Loads the Playground scene
 void KaelinsPlayground::load()
 {
-	/*
-	//creates the box2D world
-	b2WorldDef world_def = b2DefaultWorldDef();
-	//sets the gravity for the world
-	world_def.gravity = b2Vec2({ 0.0f, param::g });
-	//identifies the physics simulation
-	world_id = b2CreateWorld(&world_def);
-	*/
+	scene_restart = false;
 
-	
+
 	sf::Vector2f walls[] = {
 		// Top
 		sf::Vector2f(param::game_width * .5f, 5.f), sf::Vector2f(param::game_width, 10.f),
@@ -144,7 +141,7 @@ void KaelinsPlayground::load()
 		sf::Vector2f(param::game_width - 5.f, param::game_height * .5f), sf::Vector2f(10.f, param::game_height)
 	};
 
-	
+
 	// Build Walls
 	for (int i = 0; i < 7; i += 2)
 	{
@@ -157,7 +154,7 @@ void KaelinsPlayground::load()
 		sprites.push_back(s);
 
 		// Create a static physics body for the wall
-		b2BodyId b = b2::create_physics_box(Physics::get_world_id(), false, s);
+		b2BodyId b = testSceneBox2D::create_physics_box(Physics::get_world_id(), false, s);
 		bodies.push_back(b);
 	}
 
@@ -171,14 +168,179 @@ void KaelinsPlayground::load()
 	shape->get_shape().setOrigin(sf::Vector2f(param::player_size[0] / 2.f, param::player_size[1] / 2.f));
 
 	std::shared_ptr<PlayerPhysicsComponent> cmp = _player->add_component<PlayerPhysicsComponent>(sf::Vector2f(param::player_size[0], param::player_size[1]));
-	cmp->create_capsule_shape(sf::Vector2f(param::player_size[0], param::player_size[1]), param::player_weight, param::player_friction, param::player_restitution);
+	cmp->create_capsule_shape(sf::Vector2f(param::player_size[0], param::player_size[1]), param::player_weight, param::player_friction, param::player_restitution, -1, "Player");
+
+	//Create an enemy
+	std::shared_ptr<Entity> _enemy = make_entity();
+	_enemy->set_position(sf::Vector2f(1800, 900));
+
+	std::shared_ptr<ShapeComponent> shapew = _enemy->add_component<ShapeComponent>();
+	shapew->set_shape<sf::RectangleShape>(sf::Vector2f(param::player_size[0], param::player_size[1]));
+	shapew->get_shape().setFillColor(sf::Color::Red);
+	shapew->get_shape().setOrigin(sf::Vector2f(param::player_size[0] / 2.f, param::player_size[1] / 2.f));
+
+	std::shared_ptr<EnemyAttackComponent> ecmp = _enemy->add_component<EnemyAttackComponent>(sf::Vector2f(param::player_size[0], param::player_size[1]));
+	ecmp->create_capsule_shape(sf::Vector2f(param::player_size[0], param::player_size[1]), param::player_weight, param::player_friction, param::player_restitution, -2, "1");
+
+	//test
+	//Create an enemy
+	std::shared_ptr<Entity> _test = make_entity();
+	_test->set_position(sf::Vector2f(1000, 900));
+
+	std::shared_ptr<ShapeComponent> shapet = _test->add_component<ShapeComponent>();
+	shapet->set_shape<sf::RectangleShape>(sf::Vector2f(param::player_size[0], param::player_size[1]));
+	shapet->get_shape().setFillColor(sf::Color::Red);
+	shapet->get_shape().setOrigin(sf::Vector2f(param::player_size[0] / 2.f, param::player_size[1] / 2.f));
+
+	std::shared_ptr<EnemyAttackComponent> tcmp = _test->add_component<EnemyAttackComponent>(sf::Vector2f(param::player_size[0], param::player_size[1]));
+	tcmp->create_capsule_shape(sf::Vector2f(param::player_size[0], param::player_size[1]), param::player_weight, param::player_friction, param::player_restitution, -2, "2");
+
+	player_user_data = cmp->get_user_data();
+	enemy_user_data = ecmp->get_user_data();
+
+	_enemies.push_back(_enemy);
+	_enemies.push_back(_test);
 }
 
-void KaelinsPlayground::update(const float &dt)
+void KaelinsPlayground::update(const float& dt)
 {
-	Scene::update(dt);
-	_entities.update(dt);
-	//std::cout << _entities[0];
+	//restarts the scene if its set to restart
+	if (scene_restart)
+	{
+		unload();
+		load();
+	}
+	else
+	{
+		//set up the contact events and get the number of events
+		b2ContactEvents contact_event = Physics::get_contact_events();
+		int number_of_contact_events = contact_event.beginCount;
+
+		//set up the sensor events and get the number of events
+		b2SensorEvents sensor_event = Physics::get_sensor_events();
+		int number_of_sensor_events_start = sensor_event.beginCount;
+		int number_of_sensor_events_end = sensor_event.endCount;
+
+		//get the player component
+		auto player = _player->get_components<PlayerPhysicsComponent>();
+
+		//loop through each contact event
+		for (int i = 0; i < number_of_contact_events; i++)
+		{
+			//get current event
+			b2ContactBeginTouchEvent* begin_contact_event = contact_event.beginEvents + i;
+			char* body_1 = (char*)b2Body_GetUserData(b2Shape_GetBody(begin_contact_event->shapeIdA));
+			char* body_2 = (char*)b2Body_GetUserData(b2Shape_GetBody(begin_contact_event->shapeIdB));
+			char* shape_1 = (char*)b2Shape_GetUserData(begin_contact_event->shapeIdA);
+			char* shape_2 = (char*)b2Shape_GetUserData(begin_contact_event->shapeIdB);
+
+			if (body_1 != nullptr && body_2 != nullptr)
+			{
+				//If the player walks into an enemy
+				if ((!strcmp(body_1, "Player") && !strcmp(body_2, "Enemy")) || (!strcmp(body_2, "Player") && !strcmp(body_1, "Enemy")))
+				{
+					//player[0]->reduce_health(1);
+				}
+
+				//If an enemy gets hit by a fireball 
+				else if ((!strcmp(body_1, "Fireball") && !strcmp(body_2, "Enemy")) || (!strcmp(body_2, "Fireball") && !strcmp(body_1, "Enemy")))
+				{
+					find_which_enemy_to_defeat(shape_1, shape_2);
+				}
+			}
+		}
+		//Loop through each start sensor events
+		for (int i = 0; i < number_of_sensor_events_start; i++)
+		{
+			b2SensorBeginTouchEvent* begin_sensor_event = sensor_event.beginEvents + i;
+
+			char* body_1 = (char*)b2Body_GetUserData(b2Shape_GetBody(begin_sensor_event->sensorShapeId));
+			char* body_2 = (char*)b2Body_GetUserData(b2Shape_GetBody(begin_sensor_event->visitorShapeId));
+			char* shape_1 = (char*)b2Shape_GetUserData(begin_sensor_event->sensorShapeId);
+			char* shape_2 = (char*)b2Shape_GetUserData(begin_sensor_event->visitorShapeId);
+
+			if (body_1 != nullptr && body_2 != nullptr)
+			{
+				//If the player is in melee range of an enemy
+				if (((!strcmp(shape_1, "Melee") && !strcmp(body_2, "Enemy")) || (!strcmp(shape_2, "Melee") && !strcmp(body_1, "Enemy"))))
+				{
+					find_which_enemy_is_in_range(shape_1, shape_2, true);
+				}
+			}
+
+		}
+		//loop through each end sensor events
+		for (int i = 0; i < number_of_sensor_events_end; i++)
+		{
+			b2SensorEndTouchEvent* end_sensor_event = sensor_event.endEvents + i;
+			if (b2Shape_IsValid(end_sensor_event->visitorShapeId))
+			{
+				char* ebody_1 = (char*)b2Body_GetUserData(b2Shape_GetBody(end_sensor_event->sensorShapeId));
+				char* ebody_2 = (char*)b2Body_GetUserData(b2Shape_GetBody(end_sensor_event->visitorShapeId));
+				char* eshape_1 = (char*)b2Shape_GetUserData(end_sensor_event->sensorShapeId);
+				char* eshape_2 = (char*)b2Shape_GetUserData(end_sensor_event->visitorShapeId);
+				if (ebody_1 != nullptr && ebody_2 != nullptr)
+				{
+					//If the player leaves melee range of an enemy
+					if (((!strcmp(eshape_1, "Melee") && !strcmp(ebody_2, "Enemy")) || (!strcmp(eshape_2, "Melee") && !strcmp(ebody_1, "Enemy"))))
+					{
+						find_which_enemy_is_in_range(eshape_1, eshape_2, false);
+					}
+				}
+			}
+		}
+
+		//if the player attacks an enemy
+		if (player[0]->_attacking)
+		{
+			for (int i = 0; i < _enemies.size(); i++)
+			{
+				//checks that the player is in range with any enemy and deals damage if so
+				if (_enemies[i]->get_components<EnemyAttackComponent>()[0]->player_in_range)
+				{
+					_enemies[i]->set_for_delete();
+					_enemies[i].reset();
+					_enemies.erase(_enemies.begin() + i);
+				}
+			}
+		}
+
+		//If the player dies
+		/*if (player[0]->get_health() <= 0)
+		{
+			scene_restart = true;
+		}*/
+
+		Scene::update(dt);
+	}
+
+}
+
+//Function to see which enemy the player defeated
+void KaelinsPlayground::find_which_enemy_to_defeat(char* shape_1, char* shape_2)
+{
+	for (int i = 0; i < _enemies.size(); i++)
+	{
+		if (!strcmp(shape_1, (char*)_enemies[i]->get_components<EnemyAttackComponent>()[0]->get_shape_user_data()) || !strcmp(shape_2, (char*)_enemies[i]->get_components<EnemyAttackComponent>()[0]->get_shape_user_data()))
+		{
+			_enemies[i]->set_for_delete();
+			_enemies[i].reset();
+			_enemies.erase(_enemies.begin() + i);
+		}
+	}
+}
+
+//function to find which enemies are in range
+void KaelinsPlayground::find_which_enemy_is_in_range(char* shape_1, char* shape_2, bool inrange)
+{
+	for (int i = 0; i < _enemies.size(); i++)
+	{
+		if (!strcmp(shape_1, (char*)_enemies[i]->get_components<EnemyAttackComponent>()[0]->get_shape_user_data()) || !strcmp(shape_2, (char*)_enemies[i]->get_components<EnemyAttackComponent>()[0]->get_shape_user_data()))
+		{
+			_enemies[i]->get_components<EnemyAttackComponent>()[0]->player_in_range = inrange;
+
+		}
+	}
 }
 
 void KaelinsPlayground::render()
@@ -196,4 +358,5 @@ void KaelinsPlayground::unload()
 {
 	Scene::unload();
 	_player.reset();
+	_enemies.clear();
 }

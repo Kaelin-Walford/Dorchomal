@@ -14,6 +14,7 @@ public:
 	static void reset();
 	static void set_active_scene(const std::shared_ptr<Scene>& act_sc);
 	static std::shared_ptr<Scene>& get_active_scene() { return _active_scene; }
+	static sf::Vector2i get_mouse_position() { return _mouse_position; }
 
 private:
 	static void _init();
@@ -21,6 +22,7 @@ private:
 	static void _render();
 	static std::shared_ptr<Scene> _active_scene;
 	static bool _physics_enabled;
+	static sf::Vector2i _mouse_position;
 };
 
 class Scene

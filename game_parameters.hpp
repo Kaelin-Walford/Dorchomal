@@ -36,9 +36,22 @@ struct Parameters
 	static constexpr sf::Keyboard::Key look_down = sf::Keyboard::S;
 	static constexpr sf::Keyboard::Key move_dash = sf::Keyboard::LShift;
 	static constexpr sf::Keyboard::Key attack_fire_ball = sf::Keyboard::LControl;
+	static constexpr sf::Mouse::Button attack_fire_ball_fire = sf::Mouse::Left;
 	static constexpr sf::Keyboard::Key attack_melee = sf::Keyboard::E;
 
 	//Dash properties
 	static constexpr float dash_duration = 0.5f;
 	static constexpr float dash_speed = 1500.0f;
+
+	//Fireball Properties
+	static constexpr float fireball_target_size[2] = { 10.f,10.f };
+	static constexpr float fireball_velocity = 500;
+	static constexpr float fireball_cooldown = 5;
+
+	//Melee Attack Properties
+	static constexpr float time_to_start_attack = 0.2;
+	static constexpr float attack_duration = time_to_start_attack + 0.2;
+	static constexpr float attack_cooldown = attack_duration + 0.8;
+	
+	
 };
