@@ -17,6 +17,9 @@ void GameSystem::start(unsigned int width, unsigned int height,
 	//makes the mouse pointer invisible
 	window.setMouseCursorVisible(false);
 	sf::Event event;
+
+	int timer = 0;
+
 	while (window.isOpen())
 	{
 		static sf::Clock clock;
@@ -89,10 +92,11 @@ void GameSystem::_render()
 //Update the game objects
 void Scene::update(const float& dt)
 {
-	for (std::shared_ptr<Entity>& ent : _entities.list)
-	{
-		ent->update(dt);
-	}
+	_entities.update(dt);
+	//for (std::shared_ptr<Entity>& ent : _entities.list)
+	//{
+		//ent->update(dt);
+	//}
 }
 
 //Draw the game objects

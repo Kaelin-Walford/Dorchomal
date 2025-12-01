@@ -46,4 +46,12 @@ struct Parameters
 	//Fireball Properties
 	static constexpr float fireball_target_size[2] = { 10.f,10.f };
 	static constexpr float fireball_velocity = 500;
+	static constexpr float fireball_cooldown = 5;
+
+	//Melee Attack Properties
+	static constexpr float time_to_start_attack = 0.2;
+	static constexpr float attack_duration = time_to_start_attack + 0.2;
+	static constexpr float attack_cooldown = attack_duration + 0.8;
+	
+	
 };

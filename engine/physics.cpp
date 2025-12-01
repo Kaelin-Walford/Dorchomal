@@ -31,6 +31,11 @@ b2ContactEvents Physics::get_contact_events()
 	return b2World_GetContactEvents(_world_id);
 }
 
+b2SensorEvents Physics::get_sensor_events()
+{
+	return b2World_GetSensorEvents(_world_id);
+}
+
 /*
 * Functions to allow Box2D to talk with SFML
 * - Box2D and SFML don't use the same units or orientation

@@ -13,6 +13,7 @@ public:
 	static b2WorldId get_world_id();
 
 	static b2ContactEvents get_contact_events();// get all the contact events at the current time step
+	static b2SensorEvents get_sensor_events();// get all the sensor events at the current time step
 
 	//Convert from b2Vec2 to a Vector2f
 	static const sf::Vector2f bv2_to_sv2(const b2Vec2& in);
