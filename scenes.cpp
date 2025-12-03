@@ -329,6 +329,8 @@ void KaelinsPlayground::update(const float& dt)
 			if (_enemies[i]->get_components<EnemyAttackComponent>()[0]->in_range_of_player && _enemies[i]->get_components<EnemyAttackComponent>()[0]->attacking)
 			{
 				player[0]->reduce_health(2);
+				player[0]->knockback = true;
+				player_knockback(i);
 			}
 		}
 
@@ -408,6 +410,21 @@ void KaelinsPlayground::damage_enemy(int which_enemy, int damage)
 		_enemies[which_enemy]->set_for_delete();
 		_enemies[which_enemy].reset();
 		_enemies.erase(_enemies.begin() + which_enemy);
+	}
+}
+
+//Function to knockback the player
+void KaelinsPlayground::player_knockback(int enemy)
+{
+	_player->get_components<PlayerPhysicsComponent>()[0]->set_gravity_scale(0);
+	//_player->get_components<PlayerPhysicsComponent>()[0]->knockback = param::knockmack_duration;
+	if (_player->get_position().x < _enemies[enemy]->get_position().x)
+	{
+		_player->get_components<PlayerPhysicsComponent>()[0]->set_velocity(sf::Vector2f(-500, 100));
+	}
+	else
+	{
+		_player->get_components<PlayerPhysicsComponent>()[0]->set_velocity(sf::Vector2f(5, -5));
 	}
 }
 

@@ -440,11 +440,14 @@ PlayerPhysicsComponent::PlayerPhysicsComponent(Entity* p, const sf::Vector2f& si
 	_grounded = false;
 	_can_dash = true;
 	_is_dashing = false;
+	knockback = false;
 	_facing_right = true;
 	_dash_current_duration = 0.f;
 	_fireball_wait_timer = 0.0f;
-	_health = 1;
+	_health = param::health;
 	_previous_health = _health;
+	_just_dashed = false;
+	_knockback_duration = 0;
 
 	_attack_cooldown = param::attack_cooldown;
 	_attack_duration = param::attack_duration;
@@ -478,8 +481,12 @@ void PlayerPhysicsComponent::update(const float& dt)
 	//If the players health has reduced
 	if (_health < _previous_health)
 	{
-		teleport(sf::Vector2f(300, 300));
 		_previous_health = _health;
+	}
+	if (_health <= 0)
+	{
+		teleport(sf::Vector2f(300, 300));
+		_health = param::health;
 	}
 
 	const sf::Vector2f pos = _parent->get_position();
@@ -511,12 +518,16 @@ void PlayerPhysicsComponent::update(const float& dt)
 	attack_timer(dt);
 
 	//check to only allow player movement while they are not dashing
-	if (!_is_dashing)
+	if (!_is_dashing && !knockback)
 	{
 		//Handles left and right movement
 		if (sf::Keyboard::isKeyPressed(param::move_left) ||
 			sf::Keyboard::isKeyPressed(param::move_right))
 		{
+			if (get_gravity_scale() == 0)
+			{
+				set_gravity_scale(1);
+			}
 			// Moving Either Left or Right
 			if (sf::Keyboard::isKeyPressed(param::move_right))
 			{
@@ -528,11 +539,37 @@ void PlayerPhysicsComponent::update(const float& dt)
 				set_velocity(sf::Vector2f(-_ground_speed, get_velocity().y));
 				_facing_right = false;
 			}
+			_just_dashed = false;
 		}
-		else
+		else if(!_just_dashed)
 		{
 			//Stop moving the player left or right when there is to imput pressed
 			set_velocity(sf::Vector2f(0, get_velocity().y));
+		}
+		//If the player has dashed or been knocked back and haven't done any movement they won't be brought to an abrupt stop
+		else
+		{
+			if (get_velocity().x > 0)
+			{
+				set_velocity(sf::Vector2f(get_velocity().x - 100, get_velocity().y - 100));
+				if (get_velocity().x <= 0)
+				{
+					set_velocity(sf::Vector2f(0, 0));
+					_just_dashed = false;
+					set_gravity_scale(1);
+				}
+
+			}
+			else
+			{
+				set_velocity(sf::Vector2f(get_velocity().x + 100, get_velocity().y + 100));
+				if (get_velocity().x >= 0)
+				{
+					set_velocity(sf::Vector2f(0, 0));
+					_just_dashed = false;
+					set_gravity_scale(1);
+				}
+			}
 		}
 
 		// Clamp velocity.
@@ -652,7 +689,7 @@ void PlayerPhysicsComponent::update(const float& dt)
 
 
 	}
-	else
+	else if(_is_dashing)
 	{
 		//Runs while dashing
 		_dash_current_duration += dt;
@@ -660,7 +697,20 @@ void PlayerPhysicsComponent::update(const float& dt)
 		{
 			_is_dashing = false;
 			_dash_current_duration = 0.f;
-			set_gravity_scale(1.f);
+			_just_dashed = true;
+		}
+	}
+	else
+	{
+		//runs while being knockedback
+		_knockback_duration += dt;
+		std::cout << _knockback_duration << "\n";
+		if (_knockback_duration >= param::knockmack_duration)
+		{
+			knockback = false;
+			_knockback_duration = 0;
+			set_velocity(sf::Vector2f(0, 0));
+			set_gravity_scale(1);
 		}
 	}
 

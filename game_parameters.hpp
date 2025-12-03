@@ -27,6 +27,7 @@ struct Parameters
 	static constexpr float player_max_vel[2] = { 200.f,400.f };
 	static constexpr float player_friction = 0.f;
 	static constexpr float player_restitution = 0.0f;
+	static constexpr float health = 100;
 
 	//Controls
 	static constexpr sf::Keyboard::Key move_left = sf::Keyboard::A;
@@ -58,4 +59,5 @@ struct Parameters
 	static constexpr float enemy_time_to_start_attack = 0.4;
 	static constexpr float enemy_attack_duration = enemy_time_to_start_attack + 0.2;
 	static constexpr float enemy_attack_cooldown = enemy_attack_duration + 1;
+	static constexpr float knockmack_duration = 0.04;
 };

@@ -114,8 +114,11 @@ protected:
 	
 	float _ground_speed;
 	bool _can_dash;
-	bool _is_dashing;
 	float _dash_current_duration;
+	bool _is_dashing;
+	float _knockback_duration;
+	bool _just_dashed;
+
 	std::shared_ptr<Entity> _target;
 
 	
@@ -126,10 +129,12 @@ public:
 	void update(const float &dt) override;
 	void dash(bool rightSide, bool topSide);
 	sf::Vector2f fireball(sf::Vector2f target_position, sf::Vector2f player_position);
+	bool knockback;
 
 	explicit PlayerPhysicsComponent(Entity* p, const sf::Vector2f& size);
 
 	PlayerPhysicsComponent() = delete;
+	
 };
 
 //The class used to create an enemy that can attack - will be merge with enemy movement
