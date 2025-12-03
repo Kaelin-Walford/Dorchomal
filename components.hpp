@@ -1,6 +1,7 @@
 #pragma once
 #include "ecm.hpp"
 
+/*
 //Draws an SFML shape and keeps it positioned with its parent entity
 class ShapeComponent : public Component
 {
@@ -21,7 +22,7 @@ public:
 	}
 protected:
 	std::shared_ptr<sf::Shape> _shape;
-};
+};*/
 
 //Adds movement logic to an entity
 class ActorMovementComponent : public Component

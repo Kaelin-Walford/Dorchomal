@@ -27,16 +27,20 @@ target_link_libraries(tile_level sfml-graphics)
 #### Engine ####
 add_library(engine STATIC engine/game_system.cpp 
                         engine/renderer.cpp 
-                        engine/ecm.cpp)
-target_include_directories(engine INTERFACE engine)
-target_link_libraries(engine sfml-graphics)
+                        engine/ecm.cpp 
+                        engine/physics.cpp)
+target_include_directories(engine INTERFACE engine ${SFML_INCS} ${B2D_INCS} tile_level_loader)
+target_link_libraries(engine sfml-graphics box2d tile_level)
 
 #### executable ####
 add_executable(dorchomal 
     main.cpp
     components.cpp
     scenes.cpp
-    b2_utils.cpp)
+    b2_utils.cpp
+    physics_cmps.cpp
+    graphics_cmps.cpp
+    collisions.cpp)
 target_include_directories(dorchomal PRIVATE ${SFML_INCS} ${B2D_INCS} tile_level_loader engine)
 target_link_libraries(dorchomal sfml-graphics box2d tile_level engine)
 set_target_properties(dorchomal 
