@@ -206,121 +206,7 @@ void KaelinsPlayground::load()
 
 void KaelinsPlayground::update(const float& dt)
 {
-	//restarts the scene if its set to restart
-	if (scene_restart)
-	{
-		unload();
-		load();
-	}
-	else
-	{
-		//set up the contact events and get the number of events
-		b2ContactEvents contact_event = Physics::get_contact_events();
-		int number_of_contact_events = contact_event.beginCount;
-
-		//set up the sensor events and get the number of events
-		b2SensorEvents sensor_event = Physics::get_sensor_events();
-		int number_of_sensor_events_start = sensor_event.beginCount;
-		int number_of_sensor_events_end = sensor_event.endCount;
-
-		//get the player component
-		auto player = _player->get_components<PlayerPhysicsComponent>();
-
-		//loop through each contact event
-		for (int i = 0; i < number_of_contact_events; i++)
-		{
-			//get current event
-			b2ContactBeginTouchEvent* begin_contact_event = contact_event.beginEvents + i;
-			char* body_1 = (char*)b2Body_GetUserData(b2Shape_GetBody(begin_contact_event->shapeIdA));
-			char* body_2 = (char*)b2Body_GetUserData(b2Shape_GetBody(begin_contact_event->shapeIdB));
-			char* shape_1 = (char*)b2Shape_GetUserData(begin_contact_event->shapeIdA);
-			char* shape_2 = (char*)b2Shape_GetUserData(begin_contact_event->shapeIdB);
-
-			if (body_1 != nullptr && body_2 != nullptr)
-			{
-				//If the player walks into an enemy
-				if ((!strcmp(body_1, "Player") && !strcmp(body_2, "Enemy")) || (!strcmp(body_2, "Player") && !strcmp(body_1, "Enemy")))
-				{
-					//player[0]->reduce_health(1);
-				}
-
-				//If an enemy gets hit by a fireball 
-				else if ((!strcmp(body_1, "Fireball") && !strcmp(body_2, "Enemy")) || (!strcmp(body_2, "Fireball") && !strcmp(body_1, "Enemy")))
-				{
-					find_which_enemy_to_defeat(shape_1, shape_2);
-				}
-			}
-		}
-		//Loop through each start sensor events
-		for (int i = 0; i < number_of_sensor_events_start; i++)
-		{
-			b2SensorBeginTouchEvent* begin_sensor_event = sensor_event.beginEvents + i;
-
-			char* body_1 = (char*)b2Body_GetUserData(b2Shape_GetBody(begin_sensor_event->sensorShapeId));
-			char* body_2 = (char*)b2Body_GetUserData(b2Shape_GetBody(begin_sensor_event->visitorShapeId));
-			char* shape_1 = (char*)b2Shape_GetUserData(begin_sensor_event->sensorShapeId);
-			char* shape_2 = (char*)b2Shape_GetUserData(begin_sensor_event->visitorShapeId);
-
-			if (body_1 != nullptr && body_2 != nullptr)
-			{
-				//If the player is in melee range of an enemy
-				if (((!strcmp(shape_1, "Melee") && !strcmp(body_2, "Enemy")) || (!strcmp(shape_2, "Melee") && !strcmp(body_1, "Enemy"))))
-				{
-					find_which_enemy_is_in_range(shape_1, shape_2, true);
-				}
-			}
-
-		}
-		//loop through each end sensor events
-		for (int i = 0; i < number_of_sensor_events_end; i++)
-		{
-			b2SensorEndTouchEvent* end_sensor_event = sensor_event.endEvents + i;
-			if (b2Shape_IsValid(end_sensor_event->visitorShapeId))
-			{
-				char* ebody_1 = (char*)b2Body_GetUserData(b2Shape_GetBody(end_sensor_event->sensorShapeId));
-				char* ebody_2 = (char*)b2Body_GetUserData(b2Shape_GetBody(end_sensor_event->visitorShapeId));
-				char* eshape_1 = (char*)b2Shape_GetUserData(end_sensor_event->sensorShapeId);
-				char* eshape_2 = (char*)b2Shape_GetUserData(end_sensor_event->visitorShapeId);
-				if (ebody_1 != nullptr && ebody_2 != nullptr)
-				{
-					//If the player leaves melee range of an enemy
-					if (((!strcmp(eshape_1, "Melee") && !strcmp(ebody_2, "Enemy")) || (!strcmp(eshape_2, "Melee") && !strcmp(ebody_1, "Enemy"))))
-					{
-						find_which_enemy_is_in_range(eshape_1, eshape_2, false);
-					}
-				}
-			}
-		}
-
-		//if the player attacks an enemy
-		if (player[0]->_attacking)
-		{
-			for (int i = 0; i < _enemies.size(); i++)
-			{
-				//checks that the player is in range with any enemy and deals damage if so
-				if (_enemies[i]->get_components<EnemyAttackComponent>()[0]->player_in_range)
-				{
-					_enemies[i]->set_for_delete();
-					_enemies[i].reset();
-					_enemies.erase(_enemies.begin() + i);
-				}
-			}
-		}
-
-		//If the player dies
-		/*if (player[0]->get_health() <= 0)
-		{
-			scene_restart = true;
-		}*/
-
-		Scene::update(dt);
-	}
-
-}
-
-//Function to see which enemy the player defeated
-void KaelinsPlayground::find_which_enemy_to_defeat(char* shape_1, char* shape_2)
-{
+	// Handle escape to pause
 	if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape))
 	{
 		static bool escPressed = false;
@@ -339,8 +225,121 @@ void KaelinsPlayground::find_which_enemy_to_defeat(char* shape_1, char* shape_2)
 	// Only update game if not paused
 	if (!_is_paused)
 	{
-		Scene::update(dt);
-		_entities.update(dt);
+		//restarts the scene if its set to restart
+		if (scene_restart)
+		{
+			unload();
+			load();
+		}
+		else
+		{
+			//set up the contact events and get the number of events
+			b2ContactEvents contact_event = Physics::get_contact_events();
+			int number_of_contact_events = contact_event.beginCount;
+
+			//set up the sensor events and get the number of events
+			b2SensorEvents sensor_event = Physics::get_sensor_events();
+			int number_of_sensor_events_start = sensor_event.beginCount;
+			int number_of_sensor_events_end = sensor_event.endCount;
+
+			//get the player component
+			auto player = _player->get_components<PlayerPhysicsComponent>();
+
+			//loop through each contact event
+			for (int i = 0; i < number_of_contact_events; i++)
+			{
+				//get current event
+				b2ContactBeginTouchEvent* begin_contact_event = contact_event.beginEvents + i;
+				char* body_1 = (char*)b2Body_GetUserData(b2Shape_GetBody(begin_contact_event->shapeIdA));
+				char* body_2 = (char*)b2Body_GetUserData(b2Shape_GetBody(begin_contact_event->shapeIdB));
+				char* shape_1 = (char*)b2Shape_GetUserData(begin_contact_event->shapeIdA);
+				char* shape_2 = (char*)b2Shape_GetUserData(begin_contact_event->shapeIdB);
+
+				if (body_1 != nullptr && body_2 != nullptr)
+				{
+					//If the player walks into an enemy
+					if ((!strcmp(body_1, "Player") && !strcmp(body_2, "Enemy")) || (!strcmp(body_2, "Player") && !strcmp(body_1, "Enemy")))
+					{
+						//player[0]->reduce_health(1);
+					}
+
+					//If an enemy gets hit by a fireball 
+					else if ((!strcmp(body_1, "Fireball") && !strcmp(body_2, "Enemy")) || (!strcmp(body_2, "Fireball") && !strcmp(body_1, "Enemy")))
+					{
+						find_which_enemy_to_defeat(shape_1, shape_2);
+					}
+				}
+			}
+			//Loop through each start sensor events
+			for (int i = 0; i < number_of_sensor_events_start; i++)
+			{
+				b2SensorBeginTouchEvent* begin_sensor_event = sensor_event.beginEvents + i;
+
+				char* body_1 = (char*)b2Body_GetUserData(b2Shape_GetBody(begin_sensor_event->sensorShapeId));
+				char* body_2 = (char*)b2Body_GetUserData(b2Shape_GetBody(begin_sensor_event->visitorShapeId));
+				char* shape_1 = (char*)b2Shape_GetUserData(begin_sensor_event->sensorShapeId);
+				char* shape_2 = (char*)b2Shape_GetUserData(begin_sensor_event->visitorShapeId);
+
+				if (body_1 != nullptr && body_2 != nullptr)
+				{
+					//If the player is in melee range of an enemy
+					if (((!strcmp(shape_1, "Melee") && !strcmp(body_2, "Enemy")) || (!strcmp(shape_2, "Melee") && !strcmp(body_1, "Enemy"))))
+					{
+						find_which_enemy_is_in_range(shape_1, shape_2, true);
+					}
+				}
+
+			}
+			//loop through each end sensor events
+			for (int i = 0; i < number_of_sensor_events_end; i++)
+			{
+				b2SensorEndTouchEvent* end_sensor_event = sensor_event.endEvents + i;
+				if (b2Shape_IsValid(end_sensor_event->visitorShapeId))
+				{
+					char* ebody_1 = (char*)b2Body_GetUserData(b2Shape_GetBody(end_sensor_event->sensorShapeId));
+					char* ebody_2 = (char*)b2Body_GetUserData(b2Shape_GetBody(end_sensor_event->visitorShapeId));
+					char* eshape_1 = (char*)b2Shape_GetUserData(end_sensor_event->sensorShapeId);
+					char* eshape_2 = (char*)b2Shape_GetUserData(end_sensor_event->visitorShapeId);
+					if (ebody_1 != nullptr && ebody_2 != nullptr)
+					{
+						//If the player leaves melee range of an enemy
+						if (((!strcmp(eshape_1, "Melee") && !strcmp(ebody_2, "Enemy")) || (!strcmp(eshape_2, "Melee") && !strcmp(ebody_1, "Enemy"))))
+						{
+							find_which_enemy_is_in_range(eshape_1, eshape_2, false);
+						}
+					}
+				}
+			}
+
+			//if the player attacks an enemy
+			if (player[0]->_attacking)
+			{
+				for (int i = 0; i < _enemies.size(); i++)
+				{
+					//checks that the player is in range with any enemy and deals damage if so
+					if (_enemies[i]->get_components<EnemyAttackComponent>()[0]->player_in_range)
+					{
+						_enemies[i]->set_for_delete();
+						_enemies[i].reset();
+						_enemies.erase(_enemies.begin() + i);
+					}
+				}
+			}
+
+			//If the player dies
+			/*if (player[0]->get_health() <= 0)
+			{
+				scene_restart = true;
+			}*/
+
+			Scene::update(dt);
+		}
+	}
+}
+
+//Function to see which enemy the player defeated
+void KaelinsPlayground::find_which_enemy_to_defeat(char* shape_1, char* shape_2)
+{
 	for (int i = 0; i < _enemies.size(); i++)
 	{
 		if (!strcmp(shape_1, (char*)_enemies[i]->get_components<EnemyAttackComponent>()[0]->get_shape_user_data()) || !strcmp(shape_2, (char*)_enemies[i]->get_components<EnemyAttackComponent>()[0]->get_shape_user_data()))
