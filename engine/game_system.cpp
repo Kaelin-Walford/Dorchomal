@@ -2,6 +2,8 @@
 #include "game_system.hpp"
 #include "renderer.hpp"
 #include "physics.hpp"
+#include "../UI/menu_scene.hpp"
+#include "../scenes.hpp"
 
 std::shared_ptr<Scene> GameSystem::_active_scene;
 bool GameSystem::_physics_enabled;
@@ -33,19 +35,51 @@ void GameSystem::start(unsigned int width, unsigned int height,
 				clean();
 				return;
 			}
+
+			if (Scenes::menuScene)
+			{
+				MenuState state = Scenes::menuScene->get_state();
+				if (state == MenuState::MAIN_MENU || state == MenuState::PAUSED)
+				{
+					Scenes::menuScene->handle_event(event, window);
+				}
+			}
+
+			if (Scenes::menuScene)
+			{
+				MenuState state = Scenes::menuScene->get_state();
+				if (state == MenuState::MAIN_MENU || state == MenuState::PAUSED)
+				{
+					Scenes::menuScene->handle_event(event, window);
+				}
+			}
 		}
-		//close the game if escape is pressed
+		
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape))
 		{
-			window.close();
+			if (Scenes::menuScene && Scenes::menuScene->get_state() == MenuState::MAIN_MENU)
+			{
+				window.close();
+			}
+			// Escape during gameplay is handled in KaelinsPlayground::update()
 		}
-		//Clear the window
+
 		window.clear();
 
 		//Prepare for new frame
 		_mouse_position = sf::Mouse::getPosition(window);
 		_update(dt);
 		_render();
+
+		if (Scenes::menuScene)
+		{
+			MenuState state = Scenes::menuScene->get_state();
+			if (state == MenuState::MAIN_MENU || state == MenuState::PAUSED)
+			{
+				Scenes::menuScene->render_buttons(window);
+			}
+		}
+
 		sf::sleep(sf::seconds(time_step));
 		//Wait for Vsync
 

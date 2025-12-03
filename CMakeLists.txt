@@ -40,6 +40,8 @@ add_executable(dorchomal
     b2_utils.cpp
     physics_cmps.cpp
     graphics_cmps.cpp
+    UI/ui_button.cpp
+    UI/menu_scene.cpp)
     collisions.cpp)
 target_include_directories(dorchomal PRIVATE ${SFML_INCS} ${B2D_INCS} tile_level_loader engine)
 target_link_libraries(dorchomal sfml-graphics box2d tile_level engine)

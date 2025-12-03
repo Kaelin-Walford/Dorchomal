@@ -25,6 +25,10 @@ public:
 	void load()override;
 	void unload() override;
 
+	void toggle_pause();
+	bool is_paused() const { return _is_paused; }
+	void set_paused(bool paused) { _is_paused = paused; }
+
 	//Collision functions
 	void find_which_enemy_to_defeat(char* shape_1, char* shape_2);
 	void find_which_enemy_is_in_range(char* shape_1, char* shape_2, bool inrange);
@@ -33,6 +37,7 @@ private:
 	std::vector<b2BodyId> bodies;
 	std::vector<std::shared_ptr<sf::RectangleShape>> sprites;
 	std::shared_ptr<Entity> _player;
+	bool _is_paused = false;
 	std::vector<std::shared_ptr<Entity>> _enemies;
 	int timer = 0;
 	bool scene_restart;
@@ -43,8 +48,11 @@ private:
 	const void* fireball_user_data;
 };
 
+class MenuScene;
+
 struct Scenes
 {
 	static std::shared_ptr<Scene> physics;
-	static std::shared_ptr<Scene> kaelinsPlayground;
+	static std::shared_ptr<KaelinsPlayground> kaelinsPlayground;
+	static std::shared_ptr<MenuScene> menuScene;
 };
