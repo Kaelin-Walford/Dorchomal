@@ -884,6 +884,10 @@ void EnemyAttackComponent::update(const float& dt)
 bool EnemyAttackComponent::x_distance(int distance)
 {
 	int x_distance = get_position().x - _player->get_components<PlayerPhysicsComponent>()[0]->get_position().x - param::player_size[0];
+	if (x_distance < 0)
+	{
+		x_distance = !x_distance;
+	}
 	if (x_distance <= distance)
 	{
 		return true;

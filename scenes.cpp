@@ -378,24 +378,15 @@ void KaelinsPlayground::find_which_enemy_is_in_range(char* visitor_shape, bool i
 //Function to find which enemy has the player in range
 void KaelinsPlayground::find_which_enemy_has_the_player_in_range(b2ShapeId sensor_shapes[], bool in_range)
 {
-	//std::cout << sizeof(sensor_shapes) << "\n";
 	for (int i = 0; i < _enemies.size(); i++)
 	{
 		for (int x = 0; x < sizeof(sensor_shapes[1]); x++)
 		{
-			//if ((b2Shape_GetUserData(sensor_shapes[x]) != nullptr) && b2Shape_IsValid(sensor_shapes[x]))
-			//{
-				//std::cout << "yousdfsd\n";
-				//std::cout << (char*)b2Shape_GetUserData(sensor_shapes[x]) << "\n";
-				//std::cout << (char*)_enemies[i]->get_components<EnemyAttackComponent>()[0]->get_shape_user_data() << "\n";
-				if (!strcmp((char*)b2Shape_GetUserData(sensor_shapes[0]), (char*)_enemies[i]->get_components<EnemyAttackComponent>()[0]->get_shape_user_data()))
-				{
-					//std::cout << "why";
-					_enemies[i]->get_components<EnemyAttackComponent>()[0]->in_range_of_player = in_range;
-				}
-			//}
+			if (!strcmp((char*)b2Shape_GetUserData(sensor_shapes[0]), (char*)_enemies[i]->get_components<EnemyAttackComponent>()[0]->get_shape_user_data()))
+			{
+				_enemies[i]->get_components<EnemyAttackComponent>()[0]->in_range_of_player = in_range;
+			}
 		}
-		
 	}
 }
 
@@ -417,14 +408,13 @@ void KaelinsPlayground::damage_enemy(int which_enemy, int damage)
 void KaelinsPlayground::player_knockback(int enemy)
 {
 	_player->get_components<PlayerPhysicsComponent>()[0]->set_gravity_scale(0);
-	//_player->get_components<PlayerPhysicsComponent>()[0]->knockback = param::knockmack_duration;
 	if (_player->get_position().x < _enemies[enemy]->get_position().x)
 	{
-		_player->get_components<PlayerPhysicsComponent>()[0]->set_velocity(sf::Vector2f(-500, 100));
+		_player->get_components<PlayerPhysicsComponent>()[0]->set_velocity(sf::Vector2f(-param::knockback_force[0], param::knockback_force[1]));
 	}
 	else
 	{
-		_player->get_components<PlayerPhysicsComponent>()[0]->set_velocity(sf::Vector2f(5, -5));
+		_player->get_components<PlayerPhysicsComponent>()[0]->set_velocity(sf::Vector2f(param::knockback_force[0], param::knockback_force[1]));
 	}
 }
 

@@ -60,4 +60,5 @@ struct Parameters
 	static constexpr float enemy_attack_duration = enemy_time_to_start_attack + 0.2;
 	static constexpr float enemy_attack_cooldown = enemy_attack_duration + 1;
 	static constexpr float knockmack_duration = 0.04;
+	static constexpr float knockback_force[2] = { 500, 100 };
 };
