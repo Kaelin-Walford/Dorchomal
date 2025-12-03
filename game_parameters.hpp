@@ -22,7 +22,7 @@ struct Parameters
 	//Player stats
 	static constexpr float player_size[2] = { 20.f,30.f };
 	static constexpr float player_weight = 10.f;
-	static constexpr float player_jump = 40.f;
+	static constexpr float player_jump = 200.f;
 	static constexpr float player_impulse = 500.f;
 	static constexpr float player_max_vel[2] = { 200.f,400.f };
 	static constexpr float player_friction = 0.f;
@@ -53,5 +53,9 @@ struct Parameters
 	static constexpr float attack_duration = time_to_start_attack + 0.2;
 	static constexpr float attack_cooldown = attack_duration + 0.8;
 	
-	
+	//Enemy Attacks Properties
+	static constexpr float enemy_attack_start_range = 15;
+	static constexpr float enemy_time_to_start_attack = 0.4;
+	static constexpr float enemy_attack_duration = enemy_time_to_start_attack + 0.2;
+	static constexpr float enemy_attack_cooldown = enemy_attack_duration + 1;
 };

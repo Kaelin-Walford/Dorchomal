@@ -48,6 +48,7 @@ public:
 	void create_box_shape(const sf::Vector2f& size, float mass, float friction, float restitution, int filter, char* userdata);
 	void create_capsule_shape(const sf::Vector2f& size, float mass, float friction, float restitution, int filter, char* userdata);
 	void create_attack_hitbox(const sf::Vector2f& size);
+	bool is_grounded() const;
 
 	//entity functions
 	const std::shared_ptr<Entity>& make_entity();
@@ -61,12 +62,15 @@ public:
 	void reduce_health(int damage);
 	int get_health() { return _health; }
 
+	//attacks
+	void attack_timer(const float& dt);
+
 	//Function to destroy the body
 	//void destroy_body();
 
 	//Allows the scene to know when the entity is attacking
-	bool _attacking;
-	bool _in_range_of_target;
+	bool attacking;
+	bool in_range_of_target;
 
 	~PhysicsComponent() override;
 protected:
@@ -82,8 +86,17 @@ protected:
 	bool _can_use_fireball;
 	float _fireball_wait_timer;
 	int _health;
+	bool _grounded;
+	b2Vec2 _size;
+
+	//Attack variables
 	bool _can_attack;
 	float _attack_wait_timer;
+	bool _has_attacked;
+	float _attack_cooldown;
+	float _attack_duration;
+	float _time_to_start_attack;
+
 	//stores the health of the previous frame
 	int _previous_health;
 
@@ -96,9 +109,9 @@ protected:
 class PlayerPhysicsComponent : public PhysicsComponent
 {
 protected:
-	b2Vec2 _size;
+	
 	sf::Vector2f _max_velocity;
-	bool _grounded;
+	
 	float _ground_speed;
 	bool _can_dash;
 	bool _is_dashing;
@@ -107,7 +120,7 @@ protected:
 
 	
 
-	bool is_grounded() const;
+	//bool is_grounded() const;
 
 public:
 	void update(const float &dt) override;
@@ -124,15 +137,21 @@ class EnemyAttackComponent : public PhysicsComponent
 {
 public:
 	void update(const float& dt) override;
-	explicit EnemyAttackComponent(Entity* p, const sf::Vector2f& size);
+	explicit EnemyAttackComponent(Entity* p, Entity* player, const sf::Vector2f& size, int type);
 
 	EnemyAttackComponent() = delete;
 
+	//true if the player can hit the enemy
 	bool player_in_range;
+	//true if the enemy can hit the player
+	bool in_range_of_player;
+
+	bool x_distance(int distance);
 
 protected:
-	b2Vec2 _size;
-	//Entity* _player;
+	//1 - enemy without attacks - 2 melee attacks enemy - 3 fireball attack enemy
+	int _enemy_type;
+	Entity* _player;
 };
 
 //The class used to create a fireball

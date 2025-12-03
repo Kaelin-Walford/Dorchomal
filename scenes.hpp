@@ -27,7 +27,9 @@ public:
 
 	//Collision functions
 	void find_which_enemy_to_defeat(char* shape_1, char* shape_2);
-	void find_which_enemy_is_in_range(char* shape_1, char* shape_2, bool inrange);
+	void find_which_enemy_is_in_range(char* visitor_shape, bool in_range);
+	void find_which_enemy_has_the_player_in_range(b2ShapeId sensor_shape[], bool inrange);
+	void damage_enemy(int which_enemy, int damage);
 private:
 	b2WorldId world_id;
 	std::vector<b2BodyId> bodies;

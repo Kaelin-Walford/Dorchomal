@@ -145,8 +145,9 @@ PhysicsComponent::PhysicsComponent(Entity* p, bool dyn) : Component(p), _dynamic
 
 	_can_use_fireball = true;
 	_can_attack = true;
-	_attacking = false;
-	_in_range_of_target = false;
+	attacking = false;
+	_has_attacked = false;
+	in_range_of_target = false;
 }
 
 //Restitution is the bounciness of the object
@@ -350,11 +351,66 @@ const void* PhysicsComponent::get_shape_user_data() const
 	return b2Shape_GetUserData(_shape_id);
 }
 
+//This checks if the collision normal is pointing upward, which means the player is on the ground
+bool PhysicsComponent::is_grounded() const
+{
+	std::array<b2ContactData, 10> contacts;
+	int count = get_contacts(contacts);
+	if (count <= 0)
+	{
+		return false;
+	}
+	const b2Vec2& pos = b2Body_GetPosition(_body_id);
+	const float half_y = _size.y * .5f;
+	for (int i = 0; i < count; i++)
+	{
+		if (contacts[i].manifold.normal.y == 1)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
 //Effect and GetComponent properties
 //reduce the components health dy damage
 void PhysicsComponent::reduce_health(int damage)
 {
 	_health -= damage;
+}
+
+//Attacks
+//Attack Timer
+void PhysicsComponent::attack_timer(const float& dt)
+{
+	if (!_can_attack)
+	{
+		//Duration till entity can attack again
+		_attack_wait_timer += dt;
+		if (_attack_wait_timer >= _attack_cooldown)
+		{
+			_can_attack = true;
+			_attack_wait_timer = 0;
+		}
+
+		//When the enemy has finished attacking
+		else if (_attack_wait_timer >= _attack_duration)
+		{
+			attacking = false;
+			_has_attacked = false;
+		}
+
+		//When the entity can start to attack
+		else if (_attack_wait_timer >= _time_to_start_attack)
+		{
+			if (!_has_attacked)
+			{
+				attacking = true;
+				_has_attacked = true;
+			}
+		}
+	}
 }
 
 /*
@@ -390,6 +446,10 @@ PlayerPhysicsComponent::PlayerPhysicsComponent(Entity* p, const sf::Vector2f& si
 	_health = 1;
 	_previous_health = _health;
 
+	_attack_cooldown = param::attack_cooldown;
+	_attack_duration = param::attack_duration;
+	_time_to_start_attack = param::time_to_start_attack;
+
 	//define the fireball target shape
 	_target = make_entity();
 	_target->set_position(sf::Vector2f(0, 0));
@@ -409,31 +469,12 @@ PlayerPhysicsComponent::PlayerPhysicsComponent(Entity* p, const sf::Vector2f& si
 	// b2Body_SetBullet(_body_id,true);
 }
 
-//This checks if the collision normal is pointing upward, which means the player is on the ground
-bool PlayerPhysicsComponent::is_grounded() const
-{
-	std::array<b2ContactData, 10> contacts;
-	int count = get_contacts(contacts);
-	if (count <= 0)
-	{
-		return false;
-	}
-	const b2Vec2& pos = b2Body_GetPosition(_body_id);
-	const float half_y = _size.y * .5f;
-	for (int i = 0; i < count; i++)
-	{
-		if (contacts[i].manifold.normal.y == 1)
-		{
-			return true;
-		}
-	}
 
-	return false;
-}
 
 
 void PlayerPhysicsComponent::update(const float& dt)
 {
+	//std::cout << attacking << "\n";
 	//If the players health has reduced
 	if (_health < _previous_health)
 	{
@@ -467,23 +508,7 @@ void PlayerPhysicsComponent::update(const float& dt)
 	}
 
 	//Attack Timer
-	if (!_can_attack)
-	{
-		_attack_wait_timer += dt;
-		if (_attack_wait_timer >= param::attack_cooldown)
-		{
-			_can_attack = true;
-			_attack_wait_timer = 0;
-		}
-		else if (_attack_wait_timer >= param::attack_duration)
-		{
-			_attacking = false;
-		}
-		else if (_attack_wait_timer >= param::time_to_start_attack)
-		{
-			_attacking = true;
-		}
-	}
+	attack_timer(dt);
 
 	//check to only allow player movement while they are not dashing
 	if (!_is_dashing)
@@ -729,19 +754,42 @@ sf::Vector2f PlayerPhysicsComponent::fireball(sf::Vector2f target_position, sf::
 *	Enemy Attack Physics Component
 */
 
-EnemyAttackComponent::EnemyAttackComponent(Entity* p, const sf::Vector2f& size) : PhysicsComponent(p, true)
+EnemyAttackComponent::EnemyAttackComponent(Entity* p, Entity* player, const sf::Vector2f& size, int type) : PhysicsComponent(p, true)
 {
 	_size = ph::sv2_to_bv2(size);
-	_health = 1;
-	_previous_health = _health;
+	
+	
 	player_in_range = false;
+	in_range_of_player = false;
+	_player = player;
+	attacking = false;
+	_attack_cooldown = param::enemy_attack_cooldown;
+	_attack_duration = param::enemy_attack_duration;
+	_time_to_start_attack = param::enemy_time_to_start_attack;
+
+	//1 - enemy without attacks - 2 melee attacks enemy - 3 fireball attack enemy
+	_enemy_type = type;
+
+	if (_enemy_type == 1)
+	{
+		_health = 1;
+	}
+	else if (_enemy_type == 2)
+	{
+		_health = 3;
+
+		create_attack_hitbox(sf::Vector2f(param::player_size[0], param::player_size[1]));
+	}
+	else
+	{
+		_health = 2;
+	}
+	_previous_health = _health;
 
 	//Prevents the enemy from rotating and sleeping
 	b2Body_EnableSleep(_body_id, false);
 	b2Body_SetFixedRotation(_body_id, true);
 	b2Body_SetUserData(_body_id, "Enemy");
-
-	//_shape_id_inde = _shape_id.index1;
 }
 
 void EnemyAttackComponent::update(const float& dt)
@@ -766,7 +814,33 @@ void EnemyAttackComponent::update(const float& dt)
 		const sf::Vector2f pos = _parent->get_position();
 		b2Vec2 b2_pos = ph::sv2_to_bv2(ph::invert_height(pos, param::game_height));
 
+		attack_timer(dt);
+
+		//if the enemy is in range of the player to start attacking them
+		if (x_distance(param::enemy_attack_start_range) && in_range_of_player)
+		{
+			if (_can_attack)
+			{
+				_attack_wait_timer = 0.f;
+				_can_attack = false;
+			}
+		}
+
 		PhysicsComponent::update(dt);
+	}
+}
+
+//Returns true if  the distance between this enemy and the player only based on the x axis is less than or equal to the provided distance
+bool EnemyAttackComponent::x_distance(int distance)
+{
+	int x_distance = get_position().x - _player->get_components<PlayerPhysicsComponent>()[0]->get_position().x - param::player_size[0];
+	if (x_distance <= distance)
+	{
+		return true;
+	}
+	else
+	{
+		return false;
 	}
 }
 
