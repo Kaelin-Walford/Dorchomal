@@ -23,7 +23,7 @@ struct Parameters
 	static constexpr float player_size[2] = { 20.f,30.f };
 	static constexpr float player_weight = 10.f;
 	static constexpr float player_jump = 200.f;
-	static constexpr float player_impulse = 500.f;
+	static constexpr float player_impulse = 300.f;
 	static constexpr float player_max_vel[2] = { 200.f,400.f };
 	static constexpr float player_friction = 0.f;
 	static constexpr float player_restitution = 0.0f;
@@ -41,8 +41,8 @@ struct Parameters
 	static constexpr sf::Keyboard::Key attack_melee = sf::Keyboard::E;
 
 	//Dash properties
-	static constexpr float dash_duration = 0.5f;
-	static constexpr float dash_speed = 1500.0f;
+	static constexpr float dash_duration = 0.1f;
+	static constexpr float dash_speed = 2000.0f;
 
 	//Fireball Properties
 	static constexpr float fireball_target_size[2] = { 10.f,10.f };
@@ -59,6 +59,6 @@ struct Parameters
 	static constexpr float enemy_time_to_start_attack = 0.4;
 	static constexpr float enemy_attack_duration = enemy_time_to_start_attack + 0.2;
 	static constexpr float enemy_attack_cooldown = enemy_attack_duration + 1;
-	static constexpr float knockmack_duration = 0.04;
-	static constexpr float knockback_force[2] = { 500, 100 };
+	static constexpr float knockmack_duration = 0.07;
+	static constexpr float knockback_force[2] = { 2500, 200 };
 };

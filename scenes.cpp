@@ -240,7 +240,15 @@ void KaelinsPlayground::update(const float& dt)
 				//If the player walks into an enemy
 				if ((!strcmp(body_1, "Player") && !strcmp(body_2, "Enemy")) || (!strcmp(body_2, "Player") && !strcmp(body_1, "Enemy")))
 				{
-					//player[0]->reduce_health(1);
+					//reduce health and apply knockback
+					player[0]->reduce_health(1);
+					for (int i = 0; i < _enemies.size(); i++)
+					{
+						if ((!strcmp(shape_1, (char*)_enemies[i]->get_components<EnemyAttackComponent>()[0]->get_shape_user_data()) || (!strcmp(shape_2, (char*)_enemies[i]->get_components<EnemyAttackComponent>()[0]->get_shape_user_data()))))
+						{
+							player_knockback(i);
+						}
+					}
 				}
 
 				//If an enemy gets hit by a fireball 
@@ -329,7 +337,6 @@ void KaelinsPlayground::update(const float& dt)
 			if (_enemies[i]->get_components<EnemyAttackComponent>()[0]->in_range_of_player && _enemies[i]->get_components<EnemyAttackComponent>()[0]->attacking)
 			{
 				player[0]->reduce_health(2);
-				player[0]->knockback = true;
 				player_knockback(i);
 			}
 		}
@@ -407,6 +414,7 @@ void KaelinsPlayground::damage_enemy(int which_enemy, int damage)
 //Function to knockback the player
 void KaelinsPlayground::player_knockback(int enemy)
 {
+	_player->get_components<PlayerPhysicsComponent>()[0]->knockback = true;
 	_player->get_components<PlayerPhysicsComponent>()[0]->set_gravity_scale(0);
 	if (_player->get_position().x < _enemies[enemy]->get_position().x)
 	{

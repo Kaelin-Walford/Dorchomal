@@ -64,6 +64,7 @@ public:
 
 	//attacks
 	void attack_timer(const float& dt);
+	void fireball(sf::Vector2f velocity, float rotation, sf::Vector2f position);
 
 	//Function to destroy the body
 	//void destroy_body();
@@ -128,7 +129,7 @@ protected:
 public:
 	void update(const float &dt) override;
 	void dash(bool rightSide, bool topSide);
-	sf::Vector2f fireball(sf::Vector2f target_position, sf::Vector2f player_position);
+	std::tuple<sf::Vector2f, float> fireball_direction(sf::Vector2f target_position, sf::Vector2f player_position);
 	bool knockback;
 
 	explicit PlayerPhysicsComponent(Entity* p, const sf::Vector2f& size);
@@ -163,12 +164,12 @@ protected:
 class FireballComponent : public Component
 {
 public:
-	FireballComponent(Entity* p, sf::Vector2f position, sf::Vector2f velocity);
+	FireballComponent(Entity* p, sf::Vector2f position, sf::Vector2f velocity, float angle);
 	int get_contacts(std::array<b2ContactData, 10>& contacts) const;
 	void update(const float& dt) override;
 	void render() override;
-	void create_box_shape(const sf::Vector2f& size);
-	void create_capsule_shape(const sf::Vector2f& size);
+	void create_box_shape(const sf::Vector2f& size, int filter_group);
+	void create_capsule_shape(const sf::Vector2f& size, int filter_group);
 
 	~FireballComponent() override;
 
