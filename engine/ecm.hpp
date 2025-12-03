@@ -26,7 +26,7 @@ public:
 	* -The static_assert parts check that T inherits from Component
 	*/
 	template <typename T, typename... Targs>
-	std::shared_ptr<T> add_component(Targs... params)
+	std::shared_ptr<T> add_component(Targs&&... params)
 	{
 		static_assert(std::is_base_of<Component, T>::value, "T != Component");
 		std::shared_ptr<T> sp(std::make_shared<T>(this, params...));
@@ -37,7 +37,7 @@ public:
 	template <typename T>
 	const std::vector<std::shared_ptr<T>> get_components() const
 	{
-		static_assert(std::is_base_of<Component, T>::value, "T != Component");
+		static_assert(std::is_base_of<Component, T>::value, "T != component");
 		std::vector<std::shared_ptr<T>> ret;
 		for (const auto c : _components)
 		{
@@ -54,7 +54,7 @@ public:
 	{
 		static_assert(std::is_base_of<Component, T>::value, "T != Component");
 		std::vector<std::shared_ptr<T>> ret;
-		for (auto c : _components)
+		for (auto& c : _components)
 		{
 			auto dd = dynamic_cast<T*>(&(*c));
 			if (dd)
@@ -75,8 +75,10 @@ public:
 	void set_for_delete();
 	bool is_visible() const;
 	void set_visible(bool visible);
-protected:
+	//make this protected this is only public for testing
 	std::vector<std::shared_ptr<Component>> _components;
+protected:
+
 	sf::Vector2f _position;
 	float _rotation = 0;
 	bool _alive = true;       // should be updated
