@@ -342,7 +342,7 @@ void KaelinsPlayground::update(const float& dt)
 	}
 }
 
-//Function to see which enemy was hit (renamed from defeated)
+//Function to see which enemy was hit 
 void KaelinsPlayground::find_which_enemy_to_defeat(char* shape_1, char* shape_2)
 {
 	for (int i = 0; i < _enemies.size(); i++)
