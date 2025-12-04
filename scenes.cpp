@@ -177,12 +177,15 @@ void KaelinsPlayground::load()
 	_enemy->set_position(sf::Vector2f(1800, 900));
 
 	std::shared_ptr<ShapeComponent> shapew = _enemy->add_component<ShapeComponent>();
-	shapew->set_shape<sf::RectangleShape>(sf::Vector2f(param::player_size[0], param::player_size[1]));
+	shapew->set_shape<sf::RectangleShape>(sf::Vector2f(param::enemy_size[0], param::enemy_size[1]));
 	shapew->get_shape().setFillColor(sf::Color::Red);
-	shapew->get_shape().setOrigin(sf::Vector2f(param::player_size[0] / 2.f, param::player_size[1] / 2.f));
+	shapew->get_shape().setOrigin(sf::Vector2f(param::enemy_size[0] / 2.f, param::enemy_size[1] / 2.f));
 
-	std::shared_ptr<EnemyAttackComponent> ecmp = _enemy->add_component<EnemyAttackComponent>(sf::Vector2f(param::player_size[0], param::player_size[1]));
-	ecmp->create_capsule_shape(sf::Vector2f(param::player_size[0], param::player_size[1]), param::player_weight, param::player_friction, param::player_restitution, -2, "1");
+	std::shared_ptr<EnemyAttackComponent> ecmp = _enemy->add_component<EnemyAttackComponent>(sf::Vector2f(param::enemy_size[0], param::enemy_size[1]));
+	ecmp->create_capsule_shape(sf::Vector2f(param::enemy_size[0], param::enemy_size[1]), param::enemy_weight, param::enemy_friction, param::enemy_restitution, -2, "1");
+
+	// SET PLAYER REFERENCE - CRITICAL FOR AI!
+	ecmp->set_player_entity(_player);
 
 	//test
 	//Create an enemy
@@ -190,12 +193,15 @@ void KaelinsPlayground::load()
 	_test->set_position(sf::Vector2f(1000, 900));
 
 	std::shared_ptr<ShapeComponent> shapet = _test->add_component<ShapeComponent>();
-	shapet->set_shape<sf::RectangleShape>(sf::Vector2f(param::player_size[0], param::player_size[1]));
+	shapet->set_shape<sf::RectangleShape>(sf::Vector2f(param::enemy_size[0], param::enemy_size[1]));
 	shapet->get_shape().setFillColor(sf::Color::Red);
-	shapet->get_shape().setOrigin(sf::Vector2f(param::player_size[0] / 2.f, param::player_size[1] / 2.f));
+	shapet->get_shape().setOrigin(sf::Vector2f(param::enemy_size[0] / 2.f, param::enemy_size[1] / 2.f));
 
-	std::shared_ptr<EnemyAttackComponent> tcmp = _test->add_component<EnemyAttackComponent>(sf::Vector2f(param::player_size[0], param::player_size[1]));
-	tcmp->create_capsule_shape(sf::Vector2f(param::player_size[0], param::player_size[1]), param::player_weight, param::player_friction, param::player_restitution, -2, "2");
+	std::shared_ptr<EnemyAttackComponent> tcmp = _test->add_component<EnemyAttackComponent>(sf::Vector2f(param::enemy_size[0], param::enemy_size[1]));
+	tcmp->create_capsule_shape(sf::Vector2f(param::enemy_size[0], param::enemy_size[1]), param::enemy_weight, param::enemy_friction, param::enemy_restitution, -2, "2");
+
+	// SET PLAYER REFERENCE
+	tcmp->set_player_entity(_player);
 
 	player_user_data = cmp->get_user_data();
 	enemy_user_data = ecmp->get_user_data();
@@ -319,9 +325,8 @@ void KaelinsPlayground::update(const float& dt)
 					//checks that the player is in range with any enemy and deals damage if so
 					if (_enemies[i]->get_components<EnemyAttackComponent>()[0]->player_in_range)
 					{
-						_enemies[i]->set_for_delete();
-						_enemies[i].reset();
-						_enemies.erase(_enemies.begin() + i);
+						// Reduce enemy health instead of instant delete
+						_enemies[i]->get_components<EnemyAttackComponent>()[0]->reduce_health(1);
 					}
 				}
 			}
@@ -337,16 +342,15 @@ void KaelinsPlayground::update(const float& dt)
 	}
 }
 
-//Function to see which enemy the player defeated
+//Function to see which enemy was hit (renamed from defeated)
 void KaelinsPlayground::find_which_enemy_to_defeat(char* shape_1, char* shape_2)
 {
 	for (int i = 0; i < _enemies.size(); i++)
 	{
 		if (!strcmp(shape_1, (char*)_enemies[i]->get_components<EnemyAttackComponent>()[0]->get_shape_user_data()) || !strcmp(shape_2, (char*)_enemies[i]->get_components<EnemyAttackComponent>()[0]->get_shape_user_data()))
 		{
-			_enemies[i]->set_for_delete();
-			_enemies[i].reset();
-			_enemies.erase(_enemies.begin() + i);
+			// Reduce enemy health instead of instant delete
+			_enemies[i]->get_components<EnemyAttackComponent>()[0]->reduce_health(1);
 		}
 	}
 }

@@ -105,12 +105,12 @@ protected:
 	float _dash_current_duration;
 	std::shared_ptr<Entity> _target;
 
-	
+
 
 	bool is_grounded() const;
 
 public:
-	void update(const float &dt) override;
+	void update(const float& dt) override;
 	void dash(bool rightSide, bool topSide);
 	sf::Vector2f fireball(sf::Vector2f target_position, sf::Vector2f player_position);
 
@@ -124,15 +124,45 @@ class EnemyAttackComponent : public PhysicsComponent
 {
 public:
 	void update(const float& dt) override;
+	void render() override;
 	explicit EnemyAttackComponent(Entity* p, const sf::Vector2f& size);
 
 	EnemyAttackComponent() = delete;
 
 	bool player_in_range;
 
+	// Set player reference for AI
+	void set_player_entity(std::shared_ptr<Entity> player);
+	bool is_attacking() const { return _is_attacking; }
+	bool is_asleep() const { return _is_asleep; }
+
+	// Sleep system
+	void put_to_sleep();
+
 protected:
 	b2Vec2 _size;
-	//Entity* _player;
+
+	// Player tracking
+	std::shared_ptr<Entity> _player;
+
+	// Attack state
+	bool _can_attack;
+	float _attack_wait_timer;
+	bool _is_attacking;
+	float _attack_startup_timer;
+	bool _has_dealt_damage;
+
+	// Sleep state
+	bool _is_asleep;
+	sf::Text _zzz_text;
+	sf::Font _zzz_font;
+	float _sleep_timer;
+	bool _font_loaded;
+
+	// Helper functions
+	float get_distance_to_player() const;
+	void move_toward_player(const float& dt);
+	void perform_attack(const float& dt);
 };
 
 //The class used to create a fireball
