@@ -316,18 +316,21 @@ void PhysicsComponent::create_capsule_shape(const sf::Vector2f& size, float mass
 }
 
 //Attack hitbox
-void PhysicsComponent::create_attack_hitbox(const sf::Vector2f& size)
+void PhysicsComponent::create_attack_hitbox(const sf::Vector2f& size, const sf::Vector2f offset)
 {
 	b2ShapeDef shape_def = b2DefaultShapeDef();
 	shape_def.filter.groupIndex = _filter;
 
 	shape_def.userData = "Melee";
 	shape_def.enableSensorEvents = true;
+	//shape_def.posit
 
 	//sets it to be a sensor so it only detects other objects entering it with no collisions
 	shape_def.isSensor = true;
 
-	b2Polygon polygon = b2MakeBox(ph::sv2_to_bv2(size).x * 2, ph::sv2_to_bv2(size).y * 0.5);
+	b2Vec2 b2_offset = { offset.x, ph::sv2_to_bv2(offset).y };
+
+	b2Polygon polygon = b2MakeOffsetBox(ph::sv2_to_bv2(size).x * 2, ph::sv2_to_bv2(size).y * 0.5, b2_offset, b2MakeRot(0));
 	_shape_id = b2CreatePolygonShape(_body_id, &shape_def, &polygon);
 }
 
@@ -488,7 +491,7 @@ PlayerPhysicsComponent::PlayerPhysicsComponent(Entity* p, const sf::Vector2f& si
 	b2Body_SetFixedRotation(_body_id, true);
 	b2Body_SetUserData(_body_id, "Player");
 
-	create_attack_hitbox(sf::Vector2f(param::player_size[0], param::player_size[1]));
+	create_attack_hitbox(sf::Vector2f(param::player_size[0], param::player_size[1]), sf::Vector2f(-param::player_size[0], 0));
 	//Bullet items have higher-res collision detection
 	// b2Body_SetBullet(_body_id,true);
 }
@@ -498,7 +501,6 @@ PlayerPhysicsComponent::PlayerPhysicsComponent(Entity* p, const sf::Vector2f& si
 
 void PlayerPhysicsComponent::update(const float& dt)
 {
-	//std::cout << attacking << "\n";
 	//If the players health has reduced
 	if (_health < _previous_health)
 	{
@@ -726,7 +728,6 @@ void PlayerPhysicsComponent::update(const float& dt)
 	{
 		//runs while being knockedback
 		_knockback_duration += dt;
-		std::cout << _knockback_duration << "\n";
 		if (_knockback_duration >= param::knockmack_duration)
 		{
 			knockback = false;
@@ -806,18 +807,20 @@ std::tuple<sf::Vector2f, float> PlayerPhysicsComponent::fireball_direction(sf::V
 	}
 
 	//rotaion for the fireball
-	float fireball_rotation = (M_PI/2) - angle;
+	float fireball_rotation = (M_PI / 2) - angle;
 	if (by < 0 && xa < 0)
 	{
 		fireball_rotation += M_PI;
 	}
 	else if (by < 0)
 	{
-		fireball_rotation += (M_PI / 2);
+		fireball_rotation += M_PI;
+		fireball_rotation = -fireball_rotation;
+		
 	}
 	else if (xa < 0)
 	{
-		fireball_rotation += ((3 * M_PI) / 4);
+		fireball_rotation = -fireball_rotation;
 	}
 
 	return { sf::Vector2f(velocityX, velocityY), fireball_rotation };
@@ -852,7 +855,7 @@ EnemyAttackComponent::EnemyAttackComponent(Entity* p, Entity* player, const sf::
 	{
 		_health = 3;
 
-		create_attack_hitbox(sf::Vector2f(param::player_size[0], param::player_size[1]));
+		create_attack_hitbox(sf::Vector2f(param::player_size[0], param::player_size[1]), sf::Vector2f(-param::player_size[0], 0));
 	}
 	else
 	{
@@ -894,10 +897,9 @@ void EnemyAttackComponent::update(const float& dt)
 		if (!_can_use_fireball)
 		{
 			_fireball_wait_timer += dt;
-			std::cout << _fireball_wait_timer << " " << param::fireball_cooldown << "\n";
 			if (_fireball_wait_timer >= param::fireball_cooldown)
 			{
-				_can_use_fireball = true;
+				//_can_use_fireball = true;
 				_fireball_wait_timer = 0;
 			}
 		}
@@ -907,8 +909,12 @@ void EnemyAttackComponent::update(const float& dt)
 			if (_player->get_position().x < get_position().x)
 			{
 				velocity = -velocity;
+				fireball(sf::Vector2f(velocity, 0), (3 * M_PI / 2), pos);
 			}
-			fireball(sf::Vector2f(velocity, 0), (M_PI / 2), pos);
+			else
+			{
+				fireball(sf::Vector2f(velocity, 0), (M_PI / 2), pos);
+			}
 		}
 
 		//Delete fireballs
@@ -990,6 +996,8 @@ void FireballComponent::update(const float& dt)
 	{
 		_for_deletion = true;
 	}
+
+	//std::cout << b2Body_GetRotation(_body_id).s << "\n";
 
 	_parent->set_position(ph::invert_height(ph::bv2_to_sv2(b2Body_GetPosition(_body_id)),
 		param::game_height));

@@ -47,7 +47,7 @@ public:
 	void teleport(const sf::Vector2f& v);
 	void create_box_shape(const sf::Vector2f& size, float mass, float friction, float restitution, int filter, char* userdata);
 	void create_capsule_shape(const sf::Vector2f& size, float mass, float friction, float restitution, int filter, char* userdata);
-	void create_attack_hitbox(const sf::Vector2f& size);
+	void create_attack_hitbox(const sf::Vector2f& size, const sf::Vector2f offset);
 	bool is_grounded() const;
 
 	//entity functions
