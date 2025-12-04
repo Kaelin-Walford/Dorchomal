@@ -18,7 +18,7 @@ protected:
 	b2ChainId _chain_id;
 	float _friction;
 	float _restitution;
-	//void _create_chain_shape(const std::vector<sf::Vector2i> &tile_group);
+	void _create_chain_shape(const std::vector<sf::Vector2i> &tile_group);
 };
 
 //The physics component is the main class that the player and enemy classes will inherit from
@@ -42,6 +42,7 @@ public:
 	void teleport(const sf::Vector2f& v);
 	void create_box_shape(const sf::Vector2f& size, float mass, float friction, float restitution);
 	void create_capsule_shape(const sf::Vector2f& size, float mass, float friction, float restitution);
+
 
 	~PhysicsComponent() override;
 protected:

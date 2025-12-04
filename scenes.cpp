@@ -156,22 +156,16 @@ void KaelinsPlayground::load()
 		s->setFillColor(sf::Color::White);
 		sprites.push_back(s);
 
+
 		// Create a static physics body for the wall
 		b2BodyId b = b2::create_physics_box(Physics::get_world_id(), false, s);
 		bodies.push_back(b);
 	}
 
+
 	//Create the player
 	_player = make_entity();
 	_player->set_position(sf::Vector2f(100.0f, 100.0f));
-
-	//std::shared_ptr<ShapeComponent> shape = _player->add_component<ShapeComponent>();
-	//shape->set_shape<sf::RectangleShape>(sf::Vector2f(param::player_size[0], param::player_size[1]));
-	//shape->get_shape().setFillColor(sf::Color::Yellow);
-	//shape->get_shape().setOrigin(sf::Vector2f(param::player_size[0] / 2.f, param::player_size[1] / 2.f));
-
-	
-	
 
 	std::shared_ptr<sf::Texture> _playerTexture = std::make_shared<sf::Texture>();
 	if (!_playerTexture->loadFromFile("../../../../resources/textures/practice_sprite_witchgirl.png", sf::IntRect({ 0, 0 }, { 16, 16 }))) {
@@ -183,11 +177,6 @@ void KaelinsPlayground::load()
 	playerSprite->get_sprite().setOrigin(sf::Vector2f(8, 8));
 	playerSprite->get_sprite().setScale(sf::Vector2f(param::player_size[0]/16, param::player_size[1]/16));
 	
-	
-
-
-	
-
 	std::shared_ptr<PlayerPhysicsComponent> cmp = _player->add_component<PlayerPhysicsComponent>(sf::Vector2f(param::player_size[0], param::player_size[1]));
 	cmp->create_capsule_shape(sf::Vector2f(param::player_size[0], param::player_size[1]), param::player_weight, param::player_friction, param::player_restitution);
 }
@@ -215,3 +204,47 @@ void KaelinsPlayground::unload()
 	Scene::unload();
 	_player.reset();
 }
+
+
+/*void MaddieTerrainFuckery::load() {
+
+	sf::Vector2f
+
+	_player = make_entity();
+	_player->set_position(sf::Vector2f(100.0f, 100.0f));
+
+	std::shared_ptr<sf::Texture> _playerTexture = std::make_shared<sf::Texture>();
+	if (!_playerTexture->loadFromFile("../../../../resources/textures/practice_sprite_witchgirl.png", sf::IntRect({ 0, 0 }, { 16, 16 }))) {
+		std::cerr << "LOAD PLAYER SPRITE ERROR" << std::endl;
+	}
+
+	std::shared_ptr<SpriteComponent> playerSprite = _player->add_component<SpriteComponent>();
+	playerSprite->set_texure(_playerTexture);
+	playerSprite->get_sprite().setOrigin(sf::Vector2f(8, 8));
+	playerSprite->get_sprite().setScale(sf::Vector2f(param::player_size[0] / 16, param::player_size[1] / 16));
+
+}
+
+void MaddieTerrainFuckery::update(const float& dt)
+{
+	Scene::update(dt);
+	_entities.update(dt);
+	//std::cout << _entities[0];
+}
+
+void MaddieTerrainFuckery::render()
+{
+	for (std::shared_ptr<sf::RectangleShape> sprite : sprites)
+	{
+		Renderer::queue(sprite.get());
+	}
+
+	Scene::render();
+	_entities.render();
+}
+
+void MaddieTerrainFuckery::unload()
+{
+	Scene::unload();
+	_player.reset();
+}*/

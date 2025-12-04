@@ -342,8 +342,8 @@ if (pos.y > ls::get_height() * param::tile_size) {
 	teleport(ls::get_start_position());
 }*/
 
-	//check to only allow player movement while they are not dashing
-	//dstd::cout << get_gravity_scale();
+//check to only allow player movement while they are not dashing
+//dstd::cout << get_gravity_scale();
 	if (!_is_dashing)
 	{
 		//Handles left and right movement
@@ -446,7 +446,7 @@ if (pos.y > ls::get_height() * param::tile_size) {
 			}
 		}
 
-		
+
 	}
 	else
 	{
