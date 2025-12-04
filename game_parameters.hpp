@@ -27,6 +27,7 @@ struct Parameters
 	static constexpr float player_max_vel[2] = { 200.f,400.f };
 	static constexpr float player_friction = 0.f;
 	static constexpr float player_restitution = 0.0f;
+	static constexpr int player_max_health = 100;
 
 	//Controls
 	static constexpr sf::Keyboard::Key move_left = sf::Keyboard::A;
@@ -36,9 +37,43 @@ struct Parameters
 	static constexpr sf::Keyboard::Key look_down = sf::Keyboard::S;
 	static constexpr sf::Keyboard::Key move_dash = sf::Keyboard::LShift;
 	static constexpr sf::Keyboard::Key attack_fire_ball = sf::Keyboard::LControl;
+	static constexpr sf::Mouse::Button attack_fire_ball_fire = sf::Mouse::Left;
 	static constexpr sf::Keyboard::Key attack_melee = sf::Keyboard::E;
 
 	//Dash properties
 	static constexpr float dash_duration = 0.5f;
 	static constexpr float dash_speed = 1500.0f;
+
+	//Fireball Properties
+	static constexpr float fireball_target_size[2] = { 10.f,10.f };
+	static constexpr float fireball_velocity = 500;
+	static constexpr float fireball_cooldown = 5;
+
+	//Melee Attack Properties
+	static constexpr float time_to_start_attack = 0.2;
+	static constexpr float attack_duration = time_to_start_attack + 0.2;
+	static constexpr float attack_cooldown = attack_duration + 0.8;
+
+	//Enemy Properties
+	static constexpr float enemy_size[2] = { 20.f,30.f };
+	static constexpr float enemy_weight = 10.f;
+	static constexpr float enemy_friction = 0.f;
+	static constexpr float enemy_restitution = 0.0f;
+	static constexpr int enemy_health = 3; // Takes 3 hits to put to sleep
+
+	//Enemy Attack Properties
+	static constexpr float enemy_detection_range = 300.f; // How far enemy can detect player
+	static constexpr float enemy_attack_range = 40.f; // How close to player to attack
+	static constexpr float enemy_attack_damage = 10; // Damage per hit
+	static constexpr float enemy_attack_cooldown = 2.0f; // 2 seconds between attacks
+	static constexpr float enemy_attack_startup = 0.3f; // Wind-up before damage
+	static constexpr float enemy_attack_duration = 0.5f; // Full attack animation
+	static constexpr float enemy_move_speed = 80.f; // Movement speed toward player
+
+	//Sleep/ZZZ Properties
+	static constexpr int zzz_font_size = 24;
+	static constexpr float zzz_offset_x = 0.f; // Horizontal offset from enemy center
+	static constexpr float zzz_offset_y = -45.f; // Vertical offset (above enemy)
+	static constexpr float sleep_fade_time = 2.0f; // How long enemy stays visible after sleeping
+
 };

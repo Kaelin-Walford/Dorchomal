@@ -3,6 +3,9 @@
 #include "physics.hpp"
 #include "game_parameters.hpp"
 #include "level_system.hpp"
+#include "game_system.hpp"
+#include "graphics_cmps.hpp"
+#include "renderer.hpp"
 #include <algorithm>
 #include <cmath>
 
@@ -120,24 +123,31 @@ void PlatformComponent::_create_chain_shape(const std::vector<sf::Vector2i> &til
 //update makes sure the visual element follows the physics one
 void PhysicsComponent::update(const float& dt)
 {
-	//std::cout << dt << std::endl;
 	_parent->set_position(ph::invert_height(ph::bv2_to_sv2(b2Body_GetPosition(_body_id)),
 		param::game_height));
 	_parent->set_rotation((180 / M_PI) * b2Rot_GetAngle(b2Body_GetRotation(_body_id)));
+
+	//update the entities shape
+	_entities.update(dt);
 }
 
-PhysicsComponent::PhysicsComponent(Entity* p, bool dyn)
-	: Component(p), _dynamic(dyn)
+PhysicsComponent::PhysicsComponent(Entity* p, bool dyn) : Component(p), _dynamic(dyn)
 {
-	//
 	b2BodyDef body_def = b2DefaultBodyDef();
 	//Is Dynamic(moving), or static(Stationary) - the ? is a short-hand if else statement where it returns the first value if true and second if false
 	// i.e. if dynamic is true then it returns b2_dynamicBody, if false then b2_staticBody
-	body_def.type = _dynamic ? b2_dynamicBody : b2_staticBody;
+	body_def.type = _dynamic ? b2_dynamicBody : b2_kinematicBody;
 	body_def.position = ph::sv2_to_bv2(ph::invert_height(_parent->get_position(), param::game_height));
+	//Sets userdata to TEMP so each physics component has userdata - should be overriden by the class that inherits from this
+	body_def.userData = "TEMP";
 
 	//Create the body
 	_body_id = b2CreateBody(ph::get_world_id(), &body_def);
+
+	_can_use_fireball = true;
+	_can_attack = true;
+	_attacking = false;
+	_in_range_of_target = false;
 }
 
 //Restitution is the bounciness of the object
@@ -161,6 +171,7 @@ void PhysicsComponent::set_mass(float m)
 	b2Shape_SetDensity(_shape_id, m, true);
 }
 
+//Instantly moves the body to a new location
 void PhysicsComponent::teleport(const sf::Vector2f& v)
 {
 	b2CosSin cos_sin = b2ComputeCosSin(0.0f);
@@ -168,6 +179,19 @@ void PhysicsComponent::teleport(const sf::Vector2f& v)
 	rot.c = cos_sin.cosine;
 	rot.s = cos_sin.sine;
 	b2Body_SetTransform(_body_id, ph::sv2_to_bv2(ph::invert_height(v, param::game_height)), rot);
+}
+
+//returns the position of the physics object
+const sf::Vector2f PhysicsComponent::get_position() const
+{
+	return  _parent->get_position();
+}
+
+//Returns the box2d position
+const b2Vec2 PhysicsComponent::get_b2_position() const
+{
+	const sf::Vector2f vec = get_position();
+	return ph::sv2_to_bv2(ph::invert_height(vec, param::game_height));
 }
 
 //returns the velocity of the object
@@ -205,7 +229,11 @@ PhysicsComponent::~PhysicsComponent()
 	_body_id = b2_nullBodyId;
 }
 
-void PhysicsComponent::render() {}
+//Renders the _entities
+void PhysicsComponent::render()
+{
+	_entities.render();
+}
 
 //Adds a force to the object
 void PhysicsComponent::impulse(const sf::Vector2f& i)
@@ -235,31 +263,50 @@ int PhysicsComponent::get_contacts(std::array<b2ContactData, 10>& contacts) cons
 }
 
 //Function to create a box shape
-void PhysicsComponent::create_box_shape(const sf::Vector2f& size, float mass, float friction, float restitution)
+void PhysicsComponent::create_box_shape(const sf::Vector2f& size, float mass, float friction, float restitution, int filter, char* userdata)
 {
 	_mass = mass;
 	_friction = friction;
 	_restitution = restitution;
+
 	//Create the fixture shape
 	b2ShapeDef shape_def = b2DefaultShapeDef();
 	shape_def.density = _dynamic ? _mass : 0.f;
 	shape_def.material.friction = _friction;
 	shape_def.material.restitution = _restitution;
+
+	//defines the filter group so the body only interacts or doesnt interact with other members of the group
+	shape_def.filter.groupIndex = _filter;
+
+	//allows contact and sensor events
+	shape_def.enableContactEvents = true;
+	shape_def.enableSensorEvents = true;
+	shape_def.userData = (void*)userdata;
 	b2Polygon polygon = b2MakeBox(ph::sv2_to_bv2(size).x * 0.5f, ph::sv2_to_bv2(size).y * 0.5f);
 	_shape_id = b2CreatePolygonShape(_body_id, &shape_def, &polygon);
 }
 
 //function to create a capsule shape
-void PhysicsComponent::create_capsule_shape(const sf::Vector2f& size, float mass, float friction, float restitution)
+void PhysicsComponent::create_capsule_shape(const sf::Vector2f& size, float mass, float friction, float restitution, int filter, char* userdata)
 {
 	_mass = mass;
 	_friction = friction;
 	_restitution = restitution;
+	_filter = filter;
+
 	//Create the fixture shape
 	b2ShapeDef shape_def = b2DefaultShapeDef();
 	shape_def.density = _dynamic ? _mass : 0.f;
 	shape_def.material.friction = _friction;
 	shape_def.material.restitution = _restitution;
+
+	//defines the filter group so the body only interacts or doesnt interact with other members of the group
+	shape_def.filter.groupIndex = _filter;
+
+	//allows contact and sensor events
+	shape_def.enableContactEvents = true;
+	shape_def.enableSensorEvents = true;
+	shape_def.userData = (void*)userdata;
 	b2Vec2 b2_size = ph::sv2_to_bv2(size);
 	b2Capsule capsule;
 	capsule.center1 = { 0,b2_size.y * 0.5f - b2_size.x * 0.5f };
@@ -267,6 +314,64 @@ void PhysicsComponent::create_capsule_shape(const sf::Vector2f& size, float mass
 	capsule.radius = b2_size.x * 0.5f;
 	_shape_id = b2CreateCapsuleShape(_body_id, &shape_def, &capsule);
 }
+
+//Attack hitbox
+void PhysicsComponent::create_attack_hitbox(const sf::Vector2f& size)
+{
+	b2ShapeDef shape_def = b2DefaultShapeDef();
+	shape_def.filter.groupIndex = _filter;
+
+	shape_def.userData = "Melee";
+	shape_def.enableSensorEvents = true;
+
+	//sets it to be a sensor so it only detects other objects entering it with no collisions
+	shape_def.isSensor = true;
+
+	b2Polygon polygon = b2MakeBox(ph::sv2_to_bv2(size).x * 2, ph::sv2_to_bv2(size).y * 0.5);
+	_shape_id = b2CreatePolygonShape(_body_id, &shape_def, &polygon);
+}
+
+//Function to create an entity
+const std::shared_ptr<Entity>& PhysicsComponent::make_entity()
+{
+	std::shared_ptr<Entity> entity = std::make_shared<Entity>();
+	_entities.list.push_back(entity);
+	return _entities.list.back();
+}
+
+//Function to return the user data for the body
+const void* PhysicsComponent::get_user_data() const
+{
+	return b2Body_GetUserData(_body_id);
+}
+
+//Function to return the user data for the shape
+const void* PhysicsComponent::get_shape_user_data() const
+{
+	return b2Shape_GetUserData(_shape_id);
+}
+
+//Effect and GetComponent properties
+//reduce the components health dy damage
+void PhysicsComponent::reduce_health(int damage)
+{
+	_health -= damage;
+}
+
+/*
+void PhysicsComponent::destroy_body()
+{
+	//if (b2Body_IsValid(_body_id))
+	//{
+	b2DestroyShape(_shape_id, true);
+	_shape_id = b2_nullShapeId;
+	//b2DestroyShape(_attack_hitbox_shape_id, true);
+		//_attack_hitbox_shape_id = b2_nullShapeId;
+
+		b2DestroyBody(_body_id);
+		_body_id = b2_nullBodyId;
+	//}
+}*/
 
 /*
 *	Player Physics Component
@@ -282,20 +387,27 @@ PlayerPhysicsComponent::PlayerPhysicsComponent(Entity* p, const sf::Vector2f& si
 	_is_dashing = false;
 	_facing_right = true;
 	_dash_current_duration = 0.f;
+	_fireball_wait_timer = 0.0f;
+	_health = param::player_max_health;
+	_previous_health = _health;
+
+	//define the fireball target shape
+	_target = make_entity();
+	_target->set_position(sf::Vector2f(0, 0));
+	_target->set_visible(false);
+
+	std::shared_ptr<ShapeComponent> shape = _target->add_component<ShapeComponent>();
+	shape->set_shape<sf::RectangleShape>(sf::Vector2f(param::fireball_target_size[0], param::fireball_target_size[1]));
+	shape->get_shape().setFillColor(sf::Color::Magenta);
 
 	//Prevents the player from rotating and sleeping
 	b2Body_EnableSleep(_body_id, false);
 	b2Body_SetFixedRotation(_body_id, true);
+	b2Body_SetUserData(_body_id, "Player");
+
+	create_attack_hitbox(sf::Vector2f(param::player_size[0], param::player_size[1]));
 	//Bullet items have higher-res collision detection
 	// b2Body_SetBullet(_body_id,true);
-
-	//sets the friction, mass and restitution of the player
-	//float friction = 0.0f;
-	//float mass = 5.0f;
-	//float restitution = 0.0f;
-	//set_friction(friction);
-	//set_mass(mass);
-	//set_restitution(restitution);
 }
 
 //This checks if the collision normal is pointing upward, which means the player is on the ground
@@ -305,7 +417,6 @@ bool PlayerPhysicsComponent::is_grounded() const
 	int count = get_contacts(contacts);
 	if (count <= 0)
 	{
-		//std::cout << "IN THE AIR 1";
 		return false;
 	}
 	const b2Vec2& pos = b2Body_GetPosition(_body_id);
@@ -314,36 +425,68 @@ bool PlayerPhysicsComponent::is_grounded() const
 	{
 		if (contacts[i].manifold.normal.y == 1)
 		{
-			//std::cout << "IS GROUNDED";
 			return true;
 		}
 	}
 
-	//std::cout << "IN THE AIR 2";
 	return false;
 }
 
 
 void PlayerPhysicsComponent::update(const float& dt)
 {
-	//std::cout << _friction << "\n";
+	//If the players health has reduced
+	if (_health < _previous_health)
+	{
+		teleport(sf::Vector2f(300, 300));
+		_previous_health = _health;
+	}
+
 	const sf::Vector2f pos = _parent->get_position();
 	b2Vec2 b2_pos = ph::sv2_to_bv2(ph::invert_height(pos, param::game_height));
 
 	//Check if the player in in the air or not
 	_grounded = is_grounded();
 
-	//std::cout << _restitution << "\n";
 
 	//Teleport to start if we fall off map.
-//Curently Commented out until level_system is implemented
-/*
-if (pos.y > ls::get_height() * param::tile_size) {
+	//Curently Commented out until level_system is implemented
+	/*
+	if (pos.y > ls::get_height() * param::tile_size) {
 	teleport(ls::get_start_position());
-}*/
+	}*/
 
-//check to only allow player movement while they are not dashing
-//dstd::cout << get_gravity_scale();
+	//Fireball timer
+	if (!_can_use_fireball)
+	{
+		_fireball_wait_timer += dt;
+		if (_fireball_wait_timer >= param::fireball_cooldown)
+		{
+			_can_use_fireball = true;
+			_fireball_wait_timer = 0;
+		}
+	}
+
+	//Attack Timer
+	if (!_can_attack)
+	{
+		_attack_wait_timer += dt;
+		if (_attack_wait_timer >= param::attack_cooldown)
+		{
+			_can_attack = true;
+			_attack_wait_timer = 0;
+		}
+		else if (_attack_wait_timer >= param::attack_duration)
+		{
+			_attacking = false;
+		}
+		else if (_attack_wait_timer >= param::time_to_start_attack)
+		{
+			_attacking = true;
+		}
+	}
+
+	//check to only allow player movement while they are not dashing
 	if (!_is_dashing)
 	{
 		//Handles left and right movement
@@ -353,19 +496,17 @@ if (pos.y > ls::get_height() * param::tile_size) {
 			// Moving Either Left or Right
 			if (sf::Keyboard::isKeyPressed(param::move_right))
 			{
-				//impulse({ (dt * _ground_speed), 0 });
 				set_velocity(sf::Vector2f(_ground_speed, get_velocity().y));
+				_facing_right = true;
 			}
 			else
 			{
-				//impulse({ -(dt * _ground_speed), 0 });
 				set_velocity(sf::Vector2f(-_ground_speed, get_velocity().y));
+				_facing_right = false;
 			}
 		}
 		else
 		{
-			// Dampen X axis movement
-			//dampen({ 0.9f, 1.0f });
 			//Stop moving the player left or right when there is to imput pressed
 			set_velocity(sf::Vector2f(0, get_velocity().y));
 		}
@@ -373,17 +514,14 @@ if (pos.y > ls::get_height() * param::tile_size) {
 		// Clamp velocity.
 		sf::Vector2f v = get_velocity();
 		//Clamp y for terminal velocity
-		//v.x = copysign(std::min(abs(v.x), _max_velocity.x), v.x);
 		v.y = copysign(std::min(abs(v.y), _max_velocity.y), v.y);
 		set_velocity(v);
-		//std::cout << "should not happen when dashing\n";
 
 		//Handles the dash
 		if (_can_dash)
 		{
 			if (sf::Keyboard::isKeyPressed(param::move_dash))
 			{
-				//std::cout << "enterdash";
 				//angle dashes if the user presses multiple directions
 				if (sf::Keyboard::isKeyPressed(param::move_left) && sf::Keyboard::isKeyPressed(param::look_up))
 				{
@@ -437,7 +575,6 @@ if (pos.y > ls::get_height() * param::tile_size) {
 		// Handle Jump
 		if (sf::Keyboard::isKeyPressed(param::move_jump))
 		{
-			//_grounded = is_grounded();
 			if (_grounded)
 			{
 				set_velocity(sf::Vector2f(get_velocity().x, 0.f));
@@ -446,13 +583,54 @@ if (pos.y > ls::get_height() * param::tile_size) {
 			}
 		}
 
+		// Handle Fireball
+		if (sf::Keyboard::isKeyPressed(param::attack_fire_ball))
+		{
+			//Displays the target on the screen
+			_target->set_visible(true);
+			_target->set_position(sf::Vector2f(GameSystem::get_mouse_position()));
+			if (sf::Mouse::isButtonPressed(param::attack_fire_ball_fire) && _can_use_fireball)
+			{
+				//get the velocity for the fireball
+				sf::Vector2f velocity = fireball(_target->get_position(), pos);
+
+				//create the fireball
+				std::shared_ptr<Entity> fireball;
+
+				fireball = make_entity();
+				fireball->set_position(sf::Vector2f(pos.x, pos.y - 1));
+				fireball->set_visible(true);
+
+				std::shared_ptr<ShapeComponent> shape = fireball->add_component<ShapeComponent>();
+				shape->set_shape<sf::RectangleShape>(sf::Vector2f(param::player_size[0], param::player_size[1]));
+				shape->get_shape().setFillColor(sf::Color::Blue);
+
+				std::shared_ptr<FireballComponent> fireball_component = fireball->add_component<FireballComponent>(sf::Vector2f(pos.x, pos.y - 1), velocity);
+				fireball_component->create_capsule_shape(sf::Vector2f(param::player_size[0], param::player_size[1]));
+
+				_can_use_fireball = false;
+			}
+		}
+		else
+		{
+			_target->set_visible(false);
+		}
+
+		//Handle Melee Attack
+		if (sf::Keyboard::isKeyPressed(param::attack_melee))
+		{
+			if (_can_attack)
+			{
+				_attack_wait_timer = 0.f;
+				_can_attack = false;
+			}
+		}
+
 
 	}
 	else
 	{
-		//std::cout << get_velocity().x << "     " << get_velocity().y << "\n";
-		//std::cout << dt << "\n";
-		//std::cout << _dash_current_duration << "\n";
+		//Runs while dashing
 		_dash_current_duration += dt;
 		if (_dash_current_duration >= param::dash_duration)
 		{
@@ -472,11 +650,25 @@ if (pos.y > ls::get_height() * param::tile_size) {
 	}
 	else
 	{
-		//std::cout << "Change the friction";
 		set_friction(param::player_friction);
 		//Allows the player to dash again
 		_can_dash = true;
 	}
+
+	//Delete fireballs
+	for (auto& entity : get_entities())
+	{
+		auto components = entity->get_components<FireballComponent>();
+		for (auto& component : components)
+		{
+			if (component->is_for_deletion())
+			{
+				entity->set_for_delete();
+			}
+		}
+	}
+
+
 
 	PhysicsComponent::update(dt);
 }
@@ -485,16 +677,439 @@ if (pos.y > ls::get_height() * param::tile_size) {
 void PlayerPhysicsComponent::dash(bool rightSide, bool topSide)
 {
 	float angle = M_PI / 4; //45 degrees
+	//Use the formula c^2 = a^2 + b^2 - 2ab Cos0 - 0 is theta
 	float hypotenuse = sqrt(pow(param::dash_speed, 2) + pow(param::dash_speed, 2) - (2 * param::dash_speed * param::dash_speed * cos(angle)));
-	std::cout << hypotenuse << "    " << cos(angle) << "\n";
 
+	//Use SohCahToa to calculate the x and y velocity - topside and rightsie is used to determine wether x or y is negative
 	float x = cos(angle) * hypotenuse;
 	float y = topSide ? x : -x;
 	x = rightSide ? x : -x;
 
-	std::cout << x << "			" << y << "\n";
-
 	set_velocity(sf::Vector2f(x, y));
+}
+
+//Function for the player to cast a fireball
+sf::Vector2f PlayerPhysicsComponent::fireball(sf::Vector2f target_position, sf::Vector2f player_position)
+{
+	//Player position
+	float a = player_position.x;
+	float b = player_position.y;
+
+	//target position
+	float x = target_position.x;
+	float y = target_position.y;
+
+	float by = b - y;
+	float xa = x - a;
+
+	//gets the angle to send the fireball towards - by using SohCahToa
+	float angle = atan((b - y) / (x - a));
+
+
+	if (angle < 0)
+	{
+		angle = -angle;
+	}
+
+	//gets the x and y velocity
+	float velocityY = param::fireball_velocity * sin(angle);
+	float velocityX = param::fireball_velocity * cos(angle);
+
+	if (by < 0)
+	{
+		velocityY = -velocityY;
+	}
+	if (xa < 0)
+	{
+		velocityX = -velocityX;
+	}
+	return sf::Vector2f(velocityX, velocityY);
+}
+
+/*
+*	Enemy Attack Physics Component
+*/
+
+EnemyAttackComponent::EnemyAttackComponent(Entity* p, const sf::Vector2f& size) : PhysicsComponent(p, true)
+{
+	_size = ph::sv2_to_bv2(size);
+	_health = param::enemy_health; // Use parameter for health
+	_previous_health = _health;
+	player_in_range = false;
+
+	// Initialize attack variables
+	_can_attack = true;
+	_attack_wait_timer = 0.f;
+	_is_attacking = false;
+	_attack_startup_timer = 0.f;
+	_has_dealt_damage = false;
+	_player = nullptr;
+
+	// Initialize sleep system
+	_is_asleep = false;
+	_sleep_timer = 0.f;
+	_font_loaded = false;
+
+	// Try to load font for ZZZ text
+	if (_zzz_font.loadFromFile("resources/fonts/pixelated.otf"))
+	{
+		_font_loaded = true;
+		_zzz_text.setFont(_zzz_font);
+		_zzz_text.setString("ZZZ");
+		_zzz_text.setCharacterSize(param::zzz_font_size);
+		_zzz_text.setFillColor(sf::Color::White);
+		_zzz_text.setOutlineColor(sf::Color::Black);
+		_zzz_text.setOutlineThickness(1.f);
+
+		// Center the text
+		sf::FloatRect textBounds = _zzz_text.getLocalBounds();
+		_zzz_text.setOrigin(textBounds.left + textBounds.width / 2.f,
+			textBounds.top + textBounds.height / 2.f);
+	}
+
+	//Prevents the enemy from rotating and sleeping
+	b2Body_EnableSleep(_body_id, false);
+	b2Body_SetFixedRotation(_body_id, true);
+	b2Body_SetUserData(_body_id, "Enemy");
+
+	//_shape_id_inde = _shape_id.index1;
+}
+
+// Set the player entity reference
+void EnemyAttackComponent::set_player_entity(std::shared_ptr<Entity> player)
+{
+	_player = player;
+}
+
+// Calculate distance to player
+float EnemyAttackComponent::get_distance_to_player() const
+{
+	if (!_player)
+		return 999999.f; // Return large number if no player
+
+	sf::Vector2f enemy_pos = _parent->get_position();
+	sf::Vector2f player_pos = _player->get_position();
+
+	float dx = player_pos.x - enemy_pos.x;
+	float dy = player_pos.y - enemy_pos.y;
+
+	return std::sqrt(dx * dx + dy * dy);
+}
+
+// Move enemy toward player
+void EnemyAttackComponent::move_toward_player(const float& dt)
+{
+	if (!_player)
+		return;
+
+	sf::Vector2f enemy_pos = _parent->get_position();
+	sf::Vector2f player_pos = _player->get_position();
+
+	// Calculate direction
+	float dx = player_pos.x - enemy_pos.x;
+	float dy = player_pos.y - enemy_pos.y;
+	float distance = std::sqrt(dx * dx + dy * dy);
+
+	if (distance > 0.f)
+	{
+		// Normalize and apply speed
+		dx /= distance;
+		dy /= distance;
+
+		// Only move horizontally, let gravity handle vertical
+		sf::Vector2f current_vel = get_velocity();
+		set_velocity(sf::Vector2f(dx * param::enemy_move_speed, current_vel.y));
+	}
+}
+
+// Handle attack logic
+void EnemyAttackComponent::perform_attack(const float& dt)
+{
+	if (!_can_attack)
+	{
+		_attack_wait_timer += dt;
+
+		// During startup phase
+		if (_is_attacking && _attack_startup_timer < param::enemy_attack_startup)
+		{
+			_attack_startup_timer += dt;
+
+			// Deal damage after startup
+			if (_attack_startup_timer >= param::enemy_attack_startup && !_has_dealt_damage)
+			{
+				// Check if still in range
+				if (player_in_range && _player)
+				{
+					// Deal damage to player
+					auto player_components = _player->get_components<PlayerPhysicsComponent>();
+					if (!player_components.empty())
+					{
+						player_components[0]->reduce_health(param::enemy_attack_damage);
+					}
+					_has_dealt_damage = true;
+				}
+			}
+		}
+
+		// End attack animation
+		if (_is_attacking && _attack_startup_timer >= param::enemy_attack_duration)
+		{
+			_is_attacking = false;
+			_attack_startup_timer = 0.f;
+		}
+
+		// Reset cooldown
+		if (_attack_wait_timer >= param::enemy_attack_cooldown)
+		{
+			_can_attack = true;
+			_attack_wait_timer = 0.f;
+			_has_dealt_damage = false;
+		}
+	}
+	else if (player_in_range)
+	{
+		// Start new attack
+		_can_attack = false;
+		_is_attacking = true;
+		_attack_wait_timer = 0.f;
+		_attack_startup_timer = 0.f;
+		_has_dealt_damage = false;
+	}
+}
+
+// Put enemy to sleep
+void EnemyAttackComponent::put_to_sleep()
+{
+	if (!_is_asleep)
+	{
+		_is_asleep = true;
+		_sleep_timer = 0.f;
+
+		// Stop all movement
+		set_velocity(sf::Vector2f(0.f, 0.f));
+		set_gravity_scale(0.f); // Float in place
+
+		// Change color to indicate sleep
+		auto shape_components = _parent->get_components<ShapeComponent>();
+		if (!shape_components.empty())
+		{
+			shape_components[0]->get_shape().setFillColor(sf::Color(100, 100, 255, 200)); // Light blue, semi-transparent
+		}
+	}
+}
+
+void EnemyAttackComponent::update(const float& dt)
+{
+	// If enemy is asleep
+	if (_is_asleep)
+	{
+		_sleep_timer += dt;
+
+		// Update ZZZ text position
+		if (_font_loaded)
+		{
+			sf::Vector2f enemy_pos = _parent->get_position();
+			_zzz_text.setPosition(enemy_pos.x + param::zzz_offset_x,
+				enemy_pos.y + param::zzz_offset_y);
+
+			// Animate ZZZ (bob up and down slightly)
+			float bob = sin(_sleep_timer * 2.0f) * 3.0f;
+			_zzz_text.move(0.f, bob * dt);
+		}
+
+		// Gradually fade out after sleep_fade_time
+		if (_sleep_timer > param::sleep_fade_time)
+		{
+			auto shape_components = _parent->get_components<ShapeComponent>();
+			if (!shape_components.empty())
+			{
+				sf::Color current = shape_components[0]->get_shape().getFillColor();
+				int alpha = std::max(0, static_cast<int>(current.a - 100 * dt));
+				current.a = alpha;
+				shape_components[0]->get_shape().setFillColor(current);
+
+				// Also fade ZZZ text
+				if (_font_loaded)
+				{
+					sf::Color text_color = _zzz_text.getFillColor();
+					text_color.a = alpha;
+					_zzz_text.setFillColor(text_color);
+				}
+
+				// Mark for deletion when fully faded
+				if (alpha <= 0)
+				{
+					_parent->set_for_delete();
+				}
+			}
+		}
+
+		PhysicsComponent::update(dt);
+		return; // Don't do any other behavior while asleep
+	}
+
+	// Handle being put to sleep (health reaches 0)
+	if (_health <= 0)
+	{
+		put_to_sleep();
+		return;
+	}
+
+	// Update health tracking
+	if (_health < _previous_health)
+	{
+		_previous_health = _health;
+		// Could add hit reaction here (flash, shake, etc.)
+	}
+
+	const sf::Vector2f pos = _parent->get_position();
+
+	// Check if player exists
+	if (_player)
+	{
+		float distance = get_distance_to_player();
+
+		// Visual feedback - change color based on state
+		auto shape_components = _parent->get_components<ShapeComponent>();
+		if (!shape_components.empty())
+		{
+			if (_is_attacking)
+			{
+				shape_components[0]->get_shape().setFillColor(sf::Color(255, 100, 100)); // Light red when attacking
+			}
+			else if (distance <= param::enemy_detection_range)
+			{
+				shape_components[0]->get_shape().setFillColor(sf::Color(255, 150, 0)); // Orange when chasing
+			}
+			else
+			{
+				shape_components[0]->get_shape().setFillColor(sf::Color::Red); // Normal red when idle
+			}
+		}
+
+		// State machine
+		if (distance <= param::enemy_attack_range)
+		{
+			// ATTACK STATE
+			// Stop moving
+			set_velocity(sf::Vector2f(0.f, get_velocity().y));
+
+			// Handle attack logic
+			perform_attack(dt);
+		}
+		else if (distance <= param::enemy_detection_range)
+		{
+			// CHASE STATE
+			if (!_is_attacking)
+			{
+				move_toward_player(dt);
+			}
+		}
+		else
+		{
+			// IDLE STATE
+			// Stop moving
+			set_velocity(sf::Vector2f(0.f, get_velocity().y));
+		}
+	}
+
+	PhysicsComponent::update(dt);
+}
+
+// Render the ZZZ text if asleep
+void EnemyAttackComponent::render()
+{
+	PhysicsComponent::render();
+
+	if (_is_asleep && _font_loaded)
+	{
+		Renderer::queue(&_zzz_text);
+	}
+}
+
+/*
+*	Fireball Physics Component
+*/
+
+FireballComponent::FireballComponent(Entity* p, sf::Vector2f position, sf::Vector2f velocity) : Component(p)
+{
+	b2BodyDef body_def = b2DefaultBodyDef();
+	//Is Dynamic(moving), or static(Stationary) - the ? is a short-hand if else statement where it returns the first value if true and second if false
+	// i.e. if dynamic is true then it returns b2_dynamicBody, if false then b2_staticBody
+	body_def.type = b2_dynamicBody;
+	body_def.position = ph::sv2_to_bv2(ph::invert_height(_parent->get_position(), param::game_height));
+	body_def.userData = "Fireball";
+
+	//Create the body
+	_body_id = b2CreateBody(ph::get_world_id(), &body_def);
+	b2Body_SetGravityScale(_body_id, 0.0f);
+
+	//set the velocity for the fireball
+	b2Body_SetLinearVelocity(_body_id, ph::sv2_to_bv2(velocity));
+
+}
+
+void FireballComponent::update(const float& dt)
+{
+	//checks if the fireball has hit something, if so then destroy itself
+	std::array<b2ContactData, 10> contacts;
+	int count = get_contacts(contacts);
+	if (count > 0)
+	{
+		_for_deletion = true;
+	}
+
+	_parent->set_position(ph::invert_height(ph::bv2_to_sv2(b2Body_GetPosition(_body_id)),
+		param::game_height));
+	_parent->set_rotation((180 / M_PI) * b2Rot_GetAngle(b2Body_GetRotation(_body_id)));
+}
+
+void FireballComponent::render()
+{
+
+}
+
+//gets the contacts of the fireball
+int FireballComponent::get_contacts(std::array<b2ContactData, 10>& contacts) const
+{
+	int contact_count = b2Body_GetContactData(_body_id, contacts.data(), 10);
+	return contact_count;
+}
+
+//Function to create a box shape
+void FireballComponent::create_box_shape(const sf::Vector2f& size)
+{
+	//Create the fixture shape
+	b2ShapeDef shape_def = b2DefaultShapeDef();
+	shape_def.filter.groupIndex = -1;
+	shape_def.enableContactEvents;
+	shape_def.userData = "Fireball";
+	b2Polygon polygon = b2MakeBox(ph::sv2_to_bv2(size).x * 0.5f, ph::sv2_to_bv2(size).y * 0.5f);
+	_shape_id = b2CreatePolygonShape(_body_id, &shape_def, &polygon);
+}
+
+//function to create a capsule shape
+void FireballComponent::create_capsule_shape(const sf::Vector2f& size)
+{
+	//Create the fixture shape
+	b2ShapeDef shape_def = b2DefaultShapeDef();
+	shape_def.filter.groupIndex = -1;
+	shape_def.enableContactEvents;
+	shape_def.userData = "Fireball";
+	b2Vec2 b2_size = ph::sv2_to_bv2(size);
+	b2Capsule capsule;
+	capsule.center1 = { 0,b2_size.y * 0.5f - b2_size.x * 0.5f };
+	capsule.center2 = { 0,-b2_size.y * 0.5f + b2_size.x * 0.5f };
+	capsule.radius = b2_size.x * 0.5f;
+	_shape_id = b2CreateCapsuleShape(_body_id, &shape_def, &capsule);
+}
+
+FireballComponent::~FireballComponent()
+{
+	b2DestroyShape(_shape_id, true);
+	_shape_id = b2_nullShapeId;
+	b2DestroyBody(_body_id);
+	_body_id = b2_nullBodyId;
 }
 
 /*
@@ -520,7 +1135,9 @@ b2BodyId testSceneBox2D::create_physics_box(b2WorldId& world_id, const bool dyna
 	//Friction afects the objects ability to slide
 	shape_def.material.friction = dynamic ? 0.8f : 1.f;
 	//Restitution is the bounciness of the object
-	shape_def.material.restitution = 1.0f;
+	shape_def.material.restitution = 0.0f;
+
+	//shape_def.enableSensorEvents = true;
 
 	//This defines the shape of the box2D, its halved cause Box2D uses half width and height
 	b2Polygon polygon = b2MakeBox(Physics::sv2_to_bv2(size).x * 0.5f, Physics::sv2_to_bv2(size).y * 0.5f);
