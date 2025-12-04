@@ -262,30 +262,33 @@ void KaelinsPlayground::update(const float& dt)
 		for (int i = 0; i < number_of_sensor_events_start; i++)
 		{
 			b2SensorBeginTouchEvent* begin_sensor_event = sensor_event.beginEvents + i;
-
-			char* sensor_body = (char*)b2Body_GetUserData(b2Shape_GetBody(begin_sensor_event->sensorShapeId));
-			char* visitor_body = (char*)b2Body_GetUserData(b2Shape_GetBody(begin_sensor_event->visitorShapeId));
-			char* sensor_shape = (char*)b2Shape_GetUserData(begin_sensor_event->sensorShapeId);
-			char* visitor_shape = (char*)b2Shape_GetUserData(begin_sensor_event->visitorShapeId);
-
-			if (sensor_body != nullptr && visitor_body != nullptr)
+			if (b2Shape_IsValid(begin_sensor_event->visitorShapeId) && b2Shape_IsValid(begin_sensor_event->sensorShapeId))
 			{
-				//If the player is in melee range of an enemy
-				if (!strcmp(sensor_shape, "Melee") && !strcmp(sensor_body, "Player") && !strcmp(visitor_body, "Enemy"))
-				{
-					find_which_enemy_is_in_range(visitor_shape, true);
-				}
+				char* sensor_body = (char*)b2Body_GetUserData(b2Shape_GetBody(begin_sensor_event->sensorShapeId));
+				char* visitor_body = (char*)b2Body_GetUserData(b2Shape_GetBody(begin_sensor_event->visitorShapeId));
+				char* sensor_shape = (char*)b2Shape_GetUserData(begin_sensor_event->sensorShapeId);
+				char* visitor_shape = (char*)b2Shape_GetUserData(begin_sensor_event->visitorShapeId);
 
-				//If the enemey is in melee range of the player
-				if (!strcmp(sensor_shape, "Melee") && !strcmp(sensor_body, "Enemy") && !strcmp(visitor_body, "Player"))
+				if (sensor_body != nullptr && visitor_body != nullptr)
 				{
-					//set to 1 as the main shape will always be in the first spot
-					b2ShapeId sensor_shapes[1];
-					b2Body_GetShapes(b2Shape_GetBody(begin_sensor_event->sensorShapeId), sensor_shapes, 1);
-					find_which_enemy_has_the_player_in_range(sensor_shapes, true);
+					//If the player is in melee range of an enemy
+					if (!strcmp(sensor_shape, "Melee") && !strcmp(sensor_body, "Player") && !strcmp(visitor_body, "Enemy"))
+					{
+						find_which_enemy_is_in_range(visitor_shape, true);
+						std::cout << "playerstart\n";
+					}
+
+					//If the enemey is in melee range of the player
+					if (!strcmp(sensor_shape, "Melee") && !strcmp(sensor_body, "Enemy") && !strcmp(visitor_body, "Player"))
+					{
+						//set to 1 as the main shape will always be in the first spot
+						b2ShapeId sensor_shapes[1];
+						b2Body_GetShapes(b2Shape_GetBody(begin_sensor_event->sensorShapeId), sensor_shapes, 1);
+						find_which_enemy_has_the_player_in_range(sensor_shapes, true);
+						std::cout << "enemystart\n";
+					}
 				}
 			}
-
 		}
 		//loop through each end sensor events
 		for (int i = 0; i < number_of_sensor_events_end; i++)
@@ -302,12 +305,14 @@ void KaelinsPlayground::update(const float& dt)
 					//If the player leaves melee range of an enemy
 					if (!strcmp(end_sensor_shape, "Melee") && !strcmp(end_sensor_body, "Player") && !strcmp(end_visitor_body, "Enemy"))
 					{
+						std::cout << "playerend\n";
 						find_which_enemy_is_in_range(end_visitor_shape, false);
 					}
 
 					//If the enemy leaves melee range of the player
 					if (!strcmp(end_sensor_shape, "Melee") && !strcmp(end_sensor_body, "Enemy") && !strcmp(end_visitor_body, "Player"))
 					{
+						std::cout << "enemyend\n";
 						b2ShapeId sensor_shapes[1];
 						b2Body_GetShapes(b2Shape_GetBody(end_sensor_event->sensorShapeId), sensor_shapes, 1);
 						find_which_enemy_has_the_player_in_range(sensor_shapes, false);
@@ -322,10 +327,23 @@ void KaelinsPlayground::update(const float& dt)
 			for (int i = 0; i < _enemies.size(); i++)
 			{
 				//checks that the player is in range with any enemy and deals damage if so
-				std::cout << _enemies[i]->get_components<EnemyAttackComponent>()[0]->player_in_range;
-				if (_enemies[i]->get_components<EnemyAttackComponent>()[0]->player_in_range)
+				//std::cout << _enemies[i]->get_components<EnemyAttackComponent>()[0]->player_in_range;
+				bool facing_enemy = false;
+				if ((_enemies[i]->get_position().x < _player->get_position().x) && !_player->get_components<PlayerPhysicsComponent>()[0]->_facing_right)
 				{
-					damage_enemy(i, 1);
+					facing_enemy = true;
+				}
+				else if ((_enemies[i]->get_position().x > _player->get_position().x) && _player->get_components<PlayerPhysicsComponent>()[0]->_facing_right)
+				{
+					facing_enemy = true;
+				}
+
+				if (facing_enemy)
+				{
+					if (_enemies[i]->get_components<EnemyAttackComponent>()[0]->player_in_range)
+					{
+						damage_enemy(i, 1);
+					}
 				}
 			}
 			player[0]->attacking = false;

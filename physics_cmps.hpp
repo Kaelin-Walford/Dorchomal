@@ -47,7 +47,7 @@ public:
 	void teleport(const sf::Vector2f& v);
 	void create_box_shape(const sf::Vector2f& size, float mass, float friction, float restitution, int filter, char* userdata);
 	void create_capsule_shape(const sf::Vector2f& size, float mass, float friction, float restitution, int filter, char* userdata);
-	void create_attack_hitbox(const sf::Vector2f& size, const sf::Vector2f offset);
+	void create_attack_hitbox(const sf::Vector2f& size);
 	bool is_grounded() const;
 
 	//entity functions
@@ -73,17 +73,19 @@ public:
 	bool attacking;
 	bool in_range_of_target;
 
+	bool _facing_right;
+
 	~PhysicsComponent() override;
 protected:
 	b2BodyId _body_id;
 	b2ShapeId _shape_id;
 	b2ShapeId _attack_hitbox_shape_id;
+	//b2ShapeId _attack_hitbox_left_shape_id;
 	const bool _dynamic;
 	float _friction;
 	float _restitution;
 	float _mass;
 	int _filter;
-	bool _facing_right;
 	bool _can_use_fireball;
 	float _fireball_wait_timer;
 	int _health;

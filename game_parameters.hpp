@@ -53,6 +53,7 @@ struct Parameters
 	static constexpr float time_to_start_attack = 0.2;
 	static constexpr float attack_duration = time_to_start_attack + 0.2;
 	static constexpr float attack_cooldown = attack_duration + 0.8;
+	static constexpr float hitbox_offset = 2.6;
 	
 	//Enemy Attacks Properties
 	static constexpr float enemy_attack_start_range = 15;

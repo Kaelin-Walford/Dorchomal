@@ -316,7 +316,7 @@ void PhysicsComponent::create_capsule_shape(const sf::Vector2f& size, float mass
 }
 
 //Attack hitbox
-void PhysicsComponent::create_attack_hitbox(const sf::Vector2f& size, const sf::Vector2f offset)
+void PhysicsComponent::create_attack_hitbox(const sf::Vector2f& size)
 {
 	b2ShapeDef shape_def = b2DefaultShapeDef();
 	shape_def.filter.groupIndex = _filter;
@@ -328,10 +328,10 @@ void PhysicsComponent::create_attack_hitbox(const sf::Vector2f& size, const sf::
 	//sets it to be a sensor so it only detects other objects entering it with no collisions
 	shape_def.isSensor = true;
 
-	b2Vec2 b2_offset = { offset.x, ph::sv2_to_bv2(offset).y };
+	//b2Vec2 b2_offset = { ph::sv2_to_bv2(offset).x, ph::sv2_to_bv2(offset).y};
 
-	b2Polygon polygon = b2MakeOffsetBox(ph::sv2_to_bv2(size).x * 2, ph::sv2_to_bv2(size).y * 0.5, b2_offset, b2MakeRot(0));
-	_shape_id = b2CreatePolygonShape(_body_id, &shape_def, &polygon);
+	b2Polygon polygon = b2MakeBox(ph::sv2_to_bv2(size).x * 2, ph::sv2_to_bv2(size).y * 0.5);
+	_attack_hitbox_shape_id = b2CreatePolygonShape(_body_id, &shape_def, &polygon);
 }
 
 //Function to create an entity
@@ -491,7 +491,10 @@ PlayerPhysicsComponent::PlayerPhysicsComponent(Entity* p, const sf::Vector2f& si
 	b2Body_SetFixedRotation(_body_id, true);
 	b2Body_SetUserData(_body_id, "Player");
 
-	create_attack_hitbox(sf::Vector2f(param::player_size[0], param::player_size[1]), sf::Vector2f(-param::player_size[0], 0));
+	create_attack_hitbox(sf::Vector2f(param::player_size[0], param::player_size[1]));
+	//create_attack_hitbox(sf::Vector2f(param::player_size[0] * 1, param::player_size[1]), sf::Vector2f(-param::player_size[0] * 0.9, 0), _attack_hitbox_left_shape_id);
+
+	//_attack_hitbox_left_shape_id b2shapedisa
 	//Bullet items have higher-res collision detection
 	// b2Body_SetBullet(_body_id,true);
 }
@@ -511,6 +514,8 @@ void PlayerPhysicsComponent::update(const float& dt)
 		teleport(sf::Vector2f(300, 300));
 		_health = param::health;
 	}
+
+	//std::cout << b2Body_GetShapeCount(_body_id) << "\n";
 
 	const sf::Vector2f pos = _parent->get_position();
 	b2Vec2 b2_pos = ph::sv2_to_bv2(ph::invert_height(pos, param::game_height));
@@ -536,6 +541,7 @@ void PlayerPhysicsComponent::update(const float& dt)
 			_fireball_wait_timer = 0;
 		}
 	}
+
 
 	//Attack Timer
 	attack_timer(dt);
@@ -570,12 +576,23 @@ void PlayerPhysicsComponent::update(const float& dt)
 			if (sf::Keyboard::isKeyPressed(param::move_right))
 			{
 				set_velocity(sf::Vector2f(_ground_speed, get_velocity().y));
-				_facing_right = true;
+				if (!_facing_right)
+				{
+					_facing_right = true;
+					//b2DestroyShape(_attack_hitbox_shape_id, true);
+					//create_attack_hitbox(sf::Vector2f(param::player_size[0], param::player_size[1]));
+				}
+				
 			}
 			else
 			{
 				set_velocity(sf::Vector2f(-_ground_speed, get_velocity().y));
-				_facing_right = false;
+				if (_facing_right)
+				{
+					_facing_right = false;
+					//b2DestroyShape(_attack_hitbox_shape_id, true);
+					//create_attack_hitbox(sf::Vector2f(param::player_size[0], param::player_size[1]));
+				}
 			}
 			_just_dashed = false;
 		}
@@ -843,6 +860,7 @@ EnemyAttackComponent::EnemyAttackComponent(Entity* p, Entity* player, const sf::
 	_attack_duration = param::enemy_attack_duration;
 	_time_to_start_attack = param::enemy_time_to_start_attack;
 	_fireball_wait_timer = 0;
+	_facing_right = false;
 
 	//1 - enemy without attacks - 2 melee attacks enemy - 3 fireball attack enemy
 	_enemy_type = type;
@@ -855,7 +873,8 @@ EnemyAttackComponent::EnemyAttackComponent(Entity* p, Entity* player, const sf::
 	{
 		_health = 3;
 
-		create_attack_hitbox(sf::Vector2f(param::player_size[0], param::player_size[1]), sf::Vector2f(-param::player_size[0], 0));
+		//create_attack_hitbox(sf::Vector2f(param::player_size[0], param::player_size[1]), sf::Vector2f(param::player_size[0] * 0.9, 0), _attack_hitbox_shape_id);
+		create_attack_hitbox(sf::Vector2f(param::player_size[0], param::player_size[1]));
 	}
 	else
 	{
@@ -933,10 +952,22 @@ void EnemyAttackComponent::update(const float& dt)
 		//if the enemy is in range of the player to start attacking them
 		if (x_distance(param::enemy_attack_start_range) && in_range_of_player)
 		{
-			if (_can_attack)
+			bool facing_player = false;
+			if ((_player->get_position().x < get_position().x) && !_facing_right)
 			{
-				_attack_wait_timer = 0.f;
-				_can_attack = false;
+				facing_player = true;
+			}
+			if ((_player->get_position().x > get_position().x) && _facing_right)
+			{
+				facing_player = true;
+			}
+			if (facing_player)
+			{
+				if (_can_attack)
+				{
+					_attack_wait_timer = 0.f;
+					_can_attack = false;
+				}
 			}
 		}
 
