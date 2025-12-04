@@ -492,7 +492,6 @@ PlayerPhysicsComponent::PlayerPhysicsComponent(Entity* p, const sf::Vector2f& si
 	b2Body_SetUserData(_body_id, "Player");
 
 	create_attack_hitbox(sf::Vector2f(param::player_size[0], param::player_size[1]));
-	//create_attack_hitbox(sf::Vector2f(param::player_size[0] * 1, param::player_size[1]), sf::Vector2f(-param::player_size[0] * 0.9, 0), _attack_hitbox_left_shape_id);
 
 	//_attack_hitbox_left_shape_id b2shapedisa
 	//Bullet items have higher-res collision detection
@@ -514,8 +513,6 @@ void PlayerPhysicsComponent::update(const float& dt)
 		teleport(sf::Vector2f(300, 300));
 		_health = param::health;
 	}
-
-	//std::cout << b2Body_GetShapeCount(_body_id) << "\n";
 
 	const sf::Vector2f pos = _parent->get_position();
 	b2Vec2 b2_pos = ph::sv2_to_bv2(ph::invert_height(pos, param::game_height));
@@ -579,8 +576,6 @@ void PlayerPhysicsComponent::update(const float& dt)
 				if (!_facing_right)
 				{
 					_facing_right = true;
-					//b2DestroyShape(_attack_hitbox_shape_id, true);
-					//create_attack_hitbox(sf::Vector2f(param::player_size[0], param::player_size[1]));
 				}
 				
 			}
@@ -590,8 +585,6 @@ void PlayerPhysicsComponent::update(const float& dt)
 				if (_facing_right)
 				{
 					_facing_right = false;
-					//b2DestroyShape(_attack_hitbox_shape_id, true);
-					//create_attack_hitbox(sf::Vector2f(param::player_size[0], param::player_size[1]));
 				}
 			}
 			_just_dashed = false;
@@ -873,7 +866,6 @@ EnemyAttackComponent::EnemyAttackComponent(Entity* p, Entity* player, const sf::
 	{
 		_health = 3;
 
-		//create_attack_hitbox(sf::Vector2f(param::player_size[0], param::player_size[1]), sf::Vector2f(param::player_size[0] * 0.9, 0), _attack_hitbox_shape_id);
 		create_attack_hitbox(sf::Vector2f(param::player_size[0], param::player_size[1]));
 	}
 	else
@@ -910,68 +902,72 @@ void EnemyAttackComponent::update(const float& dt)
 		const sf::Vector2f pos = _parent->get_position();
 		b2Vec2 b2_pos = ph::sv2_to_bv2(ph::invert_height(pos, param::game_height));
 
-		attack_timer(dt);
-
-		//Fireball timer
-		if (!_can_use_fireball)
+		if (_enemy_type == 2)
 		{
-			_fireball_wait_timer += dt;
-			if (_fireball_wait_timer >= param::fireball_cooldown)
+			attack_timer(dt);
+
+			//if the enemy is in range of the player to start attacking them
+			if (x_distance(param::enemy_attack_start_range) && in_range_of_player)
 			{
-				//_can_use_fireball = true;
-				_fireball_wait_timer = 0;
+				bool facing_player = false;
+				if ((_player->get_position().x < get_position().x) && !_facing_right)
+				{
+					facing_player = true;
+				}
+				if ((_player->get_position().x > get_position().x) && _facing_right)
+				{
+					facing_player = true;
+				}
+				if (facing_player)
+				{
+					if (_can_attack)
+					{
+						_attack_wait_timer = 0.f;
+						_can_attack = false;
+					}
+				}
 			}
 		}
-		else
+
+		if(_enemy_type == 3)
 		{
-			int velocity = param::fireball_velocity;
-			if (_player->get_position().x < get_position().x)
+			//Fireball timer
+			if (!_can_use_fireball)
 			{
-				velocity = -velocity;
-				fireball(sf::Vector2f(velocity, 0), (3 * M_PI / 2), pos);
+				_fireball_wait_timer += dt;
+				if (_fireball_wait_timer >= param::fireball_cooldown)
+				{
+					//_can_use_fireball = true;
+					_fireball_wait_timer = 0;
+				}
 			}
 			else
 			{
-				fireball(sf::Vector2f(velocity, 0), (M_PI / 2), pos);
-			}
-		}
-
-		//Delete fireballs
-		for each(std::shared_ptr<Entity> entity in get_entities())
-		{
-			auto components = entity->get_components<FireballComponent>();
-			for each(std::shared_ptr<FireballComponent> component in components)
-			{
-				if (component->is_for_deletion())
+				int velocity = param::fireball_velocity;
+				if (_player->get_position().x < get_position().x)
 				{
-					entity->set_for_delete();
+					velocity = -velocity;
+					fireball(sf::Vector2f(velocity, 0), (3 * M_PI / 2), pos);
+				}
+				else
+				{
+					fireball(sf::Vector2f(velocity, 0), (M_PI / 2), pos);
+				}
+			}
+
+			//Delete fireballs
+			for each(std::shared_ptr<Entity> entity in get_entities())
+			{
+				auto components = entity->get_components<FireballComponent>();
+				for each(std::shared_ptr<FireballComponent> component in components)
+				{
+					if (component->is_for_deletion())
+					{
+						entity->set_for_delete();
+					}
 				}
 			}
 		}
-
-		//if the enemy is in range of the player to start attacking them
-		if (x_distance(param::enemy_attack_start_range) && in_range_of_player)
-		{
-			bool facing_player = false;
-			if ((_player->get_position().x < get_position().x) && !_facing_right)
-			{
-				facing_player = true;
-			}
-			if ((_player->get_position().x > get_position().x) && _facing_right)
-			{
-				facing_player = true;
-			}
-			if (facing_player)
-			{
-				if (_can_attack)
-				{
-					_attack_wait_timer = 0.f;
-					_can_attack = false;
-				}
-			}
-		}
-
-
 
 		PhysicsComponent::update(dt);
 	}
