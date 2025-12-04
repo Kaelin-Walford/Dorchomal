@@ -49,10 +49,12 @@ private:
 };
 
 class MenuScene;
+class SettingsScene;  
 
 struct Scenes
 {
 	static std::shared_ptr<Scene> physics;
 	static std::shared_ptr<KaelinsPlayground> kaelinsPlayground;
 	static std::shared_ptr<MenuScene> menuScene;
+	static std::shared_ptr<SettingsScene> settingsScene;  
 };

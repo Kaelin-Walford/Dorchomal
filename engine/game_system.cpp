@@ -3,6 +3,7 @@
 #include "renderer.hpp"
 #include "physics.hpp"
 #include "../UI/menu_scene.hpp"
+#include "../UI/settings_scene.hpp"
 #include "../scenes.hpp"
 
 std::shared_ptr<Scene> GameSystem::_active_scene;
@@ -36,6 +37,7 @@ void GameSystem::start(unsigned int width, unsigned int height,
 				return;
 			}
 
+			// Handle menu scene events
 			if (Scenes::menuScene)
 			{
 				MenuState state = Scenes::menuScene->get_state();
@@ -45,16 +47,13 @@ void GameSystem::start(unsigned int width, unsigned int height,
 				}
 			}
 
-			if (Scenes::menuScene)
+			// Handle settings scene events
+			if (Scenes::settingsScene && _active_scene == Scenes::settingsScene)
 			{
-				MenuState state = Scenes::menuScene->get_state();
-				if (state == MenuState::MAIN_MENU || state == MenuState::PAUSED)
-				{
-					Scenes::menuScene->handle_event(event, window);
-				}
+				Scenes::settingsScene->handle_event(event, window);
 			}
 		}
-		
+
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape))
 		{
 			if (Scenes::menuScene && Scenes::menuScene->get_state() == MenuState::MAIN_MENU)
@@ -71,6 +70,7 @@ void GameSystem::start(unsigned int width, unsigned int height,
 		_update(dt);
 		_render();
 
+		// Render menu buttons if menu is active
 		if (Scenes::menuScene)
 		{
 			MenuState state = Scenes::menuScene->get_state();
@@ -78,6 +78,12 @@ void GameSystem::start(unsigned int width, unsigned int height,
 			{
 				Scenes::menuScene->render_buttons(window);
 			}
+		}
+
+		// Render settings UI if settings scene is active
+		if (Scenes::settingsScene && _active_scene == Scenes::settingsScene)
+		{
+			Scenes::settingsScene->render_ui(window);
 		}
 
 		sf::sleep(sf::seconds(time_step));
