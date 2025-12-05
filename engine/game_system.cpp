@@ -5,6 +5,7 @@
 #include "../UI/menu_scene.hpp"
 #include "../UI/settings_scene.hpp"
 #include "../scenes.hpp"
+#include "audio_system.hpp"
 
 std::shared_ptr<Scene> GameSystem::_active_scene;
 bool GameSystem::_physics_enabled;
@@ -17,11 +18,12 @@ void GameSystem::start(unsigned int width, unsigned int height,
 	sf::RenderWindow window(sf::VideoMode({ width, height }), name);
 	_init();
 	Renderer::initialise(window);
-	//makes the mouse pointer invisible
-	window.setMouseCursorVisible(false);
+	
 	sf::Event event;
 
 	int timer = 0;
+
+	AudioSystem::load_music("The tomb of the last dragon.ogg");
 
 	while (window.isOpen())
 	{
@@ -44,14 +46,35 @@ void GameSystem::start(unsigned int width, unsigned int height,
 				if (state == MenuState::MAIN_MENU || state == MenuState::PAUSED)
 				{
 					Scenes::menuScene->handle_event(event, window);
+					change_mouse_visibility(true, &window);
+					if (AudioSystem::is_music_playing() == sf::SoundSource::Status::Playing)
+					{
+						AudioSystem::play_pause_music(false);
+					}
 				}
 			}
 
 			// Handle settings scene events
 			if (Scenes::settingsScene && _active_scene == Scenes::settingsScene)
 			{
+				change_mouse_visibility(true, &window);
 				Scenes::settingsScene->handle_event(event, window);
+				if (AudioSystem::is_music_playing() == sf::SoundSource::Status::Playing)
+				{
+					AudioSystem::play_pause_music(false);
+				}
 			}
+
+			//If the _active_scene is the game level so to hide the mouse pointer
+			if (_active_scene == Scenes::kaelinsPlayground)
+			{
+				change_mouse_visibility(false, &window);
+				if (AudioSystem::is_music_playing() != sf::SoundSource::Status::Playing)
+				{
+					AudioSystem::play_pause_music(true);
+				}
+			}
+
 		}
 
 		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape))
@@ -94,6 +117,12 @@ void GameSystem::start(unsigned int width, unsigned int height,
 	}
 	window.close();
 	clean();
+}
+
+void GameSystem::change_mouse_visibility(bool visible, sf::RenderWindow* window)
+{
+	//makes the mouse pointer invisible
+	window->setMouseCursorVisible(visible);
 }
 
 void GameSystem::set_active_scene(const std::shared_ptr<Scene>& act_sc)

@@ -28,9 +28,10 @@ target_link_libraries(tile_level sfml-graphics)
 add_library(engine STATIC engine/game_system.cpp 
                         engine/renderer.cpp 
                         engine/ecm.cpp 
-                        engine/physics.cpp)
+                        engine/physics.cpp
+                        engine/audio_system.cpp)
 target_include_directories(engine INTERFACE engine ${SFML_INCS} ${B2D_INCS} tile_level_loader)
-target_link_libraries(engine sfml-graphics box2d tile_level)
+target_link_libraries(engine sfml-graphics sfml-audio sfml-system box2d tile_level)
 
 #### executable ####
 add_executable(dorchomal 
@@ -49,7 +50,7 @@ add_executable(dorchomal
     UI/settings_scene.cpp
 )
 target_include_directories(dorchomal PRIVATE ${SFML_INCS} ${B2D_INCS} tile_level_loader engine)
-target_link_libraries(dorchomal sfml-graphics box2d tile_level engine)
+target_link_libraries(dorchomal sfml-graphics sfml-audio sfml-system box2d tile_level engine)
 set_target_properties(dorchomal 
     PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY
     ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$(Configuration)
@@ -66,4 +67,11 @@ add_custom_target(copy_resources ALL COMMAND ${CMAKE_COMMAND}
     "${PROJECT_SOURCE_DIR}/resources"
     ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources
 )
+
+add_custom_command(TARGET dorchomal POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    "${PROJECT_SOURCE_DIR}/lib/SFML/extlibs/bin/x64"
+    "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}"
+)
+
 add_dependencies(dorchomal copy_resources)
