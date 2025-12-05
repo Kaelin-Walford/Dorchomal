@@ -2,6 +2,7 @@
 #include "ecm.hpp"
 #include <array>
 #include <box2d/box2d.h>
+#include "audio_system.hpp"
 
 //forward declaration
 class FireballComponent;
@@ -106,11 +107,25 @@ protected:
 	//entities
 	EntityManager _entities;
 	std::vector<std::shared_ptr<FireballComponent>> _fireball_components;
+
+	//Stores sounds
+	AudioSystem _attack_sound;
+	AudioSystem _hit_sound;
+	AudioSystem _walk_sound;
+	AudioSystem _fireball_sound;
 };
 
 //The class that handles player controls
 class PlayerPhysicsComponent : public PhysicsComponent
 {
+public:
+	void update(const float& dt) override;
+	void dash(bool rightSide, bool topSide);
+	sf::Vector2f fireball(sf::Vector2f target_position, sf::Vector2f player_position);
+
+	explicit PlayerPhysicsComponent(Entity* p, const sf::Vector2f& size);
+
+	PlayerPhysicsComponent() = delete;
 protected:
 	
 	sf::Vector2f _max_velocity;
@@ -137,6 +152,10 @@ public:
 
 	PlayerPhysicsComponent() = delete;
 	
+	bool is_grounded() const;
+
+	//Sounds
+	AudioSystem _dash_sound;
 };
 
 //The class used to create an enemy that can attack - will be merge with enemy movement
@@ -145,6 +164,8 @@ class EnemyAttackComponent : public PhysicsComponent
 public:
 	void update(const float& dt) override;
 	explicit EnemyAttackComponent(Entity* p, Entity* player, const sf::Vector2f& size, int type);
+	void render() override;
+	explicit EnemyAttackComponent(Entity* p, const sf::Vector2f& size);
 
 	EnemyAttackComponent() = delete;
 
@@ -155,10 +176,41 @@ public:
 
 	bool x_distance(int distance);
 
+	// Set player reference for AI
+	void set_player_entity(std::shared_ptr<Entity> player);
+	bool is_attacking() const { return _is_attacking; }
+	bool is_asleep() const { return _is_asleep; }
+
+	// Sleep system
+	void put_to_sleep();
+
 protected:
 	//1 - enemy without attacks - 2 melee attacks enemy - 3 fireball attack enemy
 	int _enemy_type;
 	Entity* _player;
+	b2Vec2 _size;
+
+	// Player tracking
+	std::shared_ptr<Entity> _player;
+
+	// Attack state
+	bool _can_attack;
+	float _attack_wait_timer;
+	bool _is_attacking;
+	float _attack_startup_timer;
+	bool _has_dealt_damage;
+
+	// Sleep state
+	bool _is_asleep;
+	sf::Text _zzz_text;
+	sf::Font _zzz_font;
+	float _sleep_timer;
+	bool _font_loaded;
+
+	// Helper functions
+	float get_distance_to_player() const;
+	void move_toward_player(const float& dt);
+	void perform_attack(const float& dt);
 };
 
 //The class used to create a fireball

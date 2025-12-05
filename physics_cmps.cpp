@@ -5,12 +5,18 @@
 #include "level_system.hpp"
 #include "game_system.hpp"
 #include "graphics_cmps.hpp"
+#include "renderer.hpp"
 #include <algorithm>
 #include <cmath>
+#include "audio_system.hpp"
 
 using param = Parameters;
 using ph = Physics;
 //using ls = LevelSystem;
+
+std::vector<sf::SoundBuffer> AudioSystem::_sound_buffers;
+std::vector<sf::Sound> AudioSystem::_sounds;
+sf::Music AudioSystem::_music;
 
 /*
 *	Platform Component
@@ -148,6 +154,13 @@ PhysicsComponent::PhysicsComponent(Entity* p, bool dyn) : Component(p), _dynamic
 	attacking = false;
 	_has_attacked = false;
 	in_range_of_target = false;
+	_attacking = false;
+	_in_range_of_target = false;
+
+	//Sounds
+	_attack_sound.add_sound("Slash.wav");
+	_walk_sound.add_sound("walk.wav");
+	_fireball_sound.add_sound("Slash.wav");
 }
 
 //Restitution is the bounciness of the object
@@ -454,6 +467,7 @@ PlayerPhysicsComponent::PlayerPhysicsComponent(Entity* p, const sf::Vector2f& si
 	_dash_current_duration = 0.f;
 	_fireball_wait_timer = 0.0f;
 	_health = param::health;
+	_health = param::player_max_health;
 	_previous_health = _health;
 	_just_dashed = false;
 	_knockback_duration = 0;
@@ -461,6 +475,9 @@ PlayerPhysicsComponent::PlayerPhysicsComponent(Entity* p, const sf::Vector2f& si
 	_attack_cooldown = param::attack_cooldown;
 	_attack_duration = param::attack_duration;
 	_time_to_start_attack = param::time_to_start_attack;
+
+	//Sounds
+	_dash_sound.add_sound("dash.wav");
 
 	//define the fireball target shape
 	_target = make_entity();
@@ -534,8 +551,7 @@ void PlayerPhysicsComponent::update(const float& dt)
 		}
 
 		//Handles left and right movement
-		if (sf::Keyboard::isKeyPressed(param::move_left) ||
-			sf::Keyboard::isKeyPressed(param::move_right))
+		if (sf::Keyboard::isKeyPressed(param::move_left) || sf::Keyboard::isKeyPressed(param::move_right))
 		{
 			if (get_gravity_scale() == 0)
 			{
@@ -560,6 +576,14 @@ void PlayerPhysicsComponent::update(const float& dt)
 				}
 			}
 			_just_dashed = false;
+			//If on the ground and not playing a sound then play walk sound
+			if (_grounded)
+			{
+				if (_walk_sound.is_sound_playing() == sf::SoundSource::Stopped)
+				{
+					_walk_sound.play_sound();
+				}
+			}
 		}
 		else if (!_just_dashed)
 		{
@@ -603,6 +627,9 @@ void PlayerPhysicsComponent::update(const float& dt)
 		{
 			if (sf::Keyboard::isKeyPressed(param::move_dash))
 			{
+				//Play dash sound
+				_fireball_sound.play_sound();
+
 				//angle dashes if the user presses multiple directions
 				if (sf::Keyboard::isKeyPressed(param::move_left) && sf::Keyboard::isKeyPressed(param::look_up))
 				{
@@ -671,6 +698,9 @@ void PlayerPhysicsComponent::update(const float& dt)
 			_target->set_position(sf::Vector2f(GameSystem::get_mouse_position()));
 			if (sf::Mouse::isButtonPressed(param::attack_fire_ball_fire) && _can_use_fireball)
 			{
+				//play fireball sound
+				_fireball_sound.play_sound();
+
 				//get the velocity for the fireball
 				auto [velocity, rotation] = fireball_direction(_target->get_position(), pos);
 
@@ -719,10 +749,10 @@ void PlayerPhysicsComponent::update(const float& dt)
 
 
 	//Delete fireballs
-	for each(std::shared_ptr<Entity> entity in get_entities())
+	for (auto& entity : get_entities())
 	{
 		auto components = entity->get_components<FireballComponent>();
-		for each(std::shared_ptr<FireballComponent> component in components)
+		for (auto& component : components)
 		{
 			if (component->is_for_deletion())
 			{
@@ -815,6 +845,8 @@ EnemyAttackComponent::EnemyAttackComponent(Entity* p, Entity* player, const sf::
 	_size = ph::sv2_to_bv2(size);
 
 
+	_health = param::enemy_health; // Use parameter for health
+	_previous_health = _health;
 	player_in_range = false;
 	in_range_of_player = false;
 	_player = player;
@@ -846,10 +878,163 @@ EnemyAttackComponent::EnemyAttackComponent(Entity* p, Entity* player, const sf::
 	}
 	_previous_health = _health;
 
+	// Initialize attack variables
+	_can_attack = true;
+	_attack_wait_timer = 0.f;
+	_is_attacking = false;
+	_attack_startup_timer = 0.f;
+	_has_dealt_damage = false;
+	_player = nullptr;
+
+	// Initialize sleep system
+	_is_asleep = false;
+	_sleep_timer = 0.f;
+	_font_loaded = false;
+
+	// Try to load font for ZZZ text
+	if (_zzz_font.loadFromFile("resources/fonts/pixelated.otf"))
+	{
+		_font_loaded = true;
+		_zzz_text.setFont(_zzz_font);
+		_zzz_text.setString("ZZZ");
+		_zzz_text.setCharacterSize(param::zzz_font_size);
+		_zzz_text.setFillColor(sf::Color::White);
+		_zzz_text.setOutlineColor(sf::Color::Black);
+		_zzz_text.setOutlineThickness(1.f);
+
+		// Center the text
+		sf::FloatRect textBounds = _zzz_text.getLocalBounds();
+		_zzz_text.setOrigin(textBounds.left + textBounds.width / 2.f,
+			textBounds.top + textBounds.height / 2.f);
+	}
+
 	//Prevents the enemy from rotating and sleeping
 	b2Body_EnableSleep(_body_id, false);
 	b2Body_SetFixedRotation(_body_id, true);
 	b2Body_SetUserData(_body_id, "Enemy");
+}
+
+// Set the player entity reference
+void EnemyAttackComponent::set_player_entity(std::shared_ptr<Entity> player)
+{
+	_player = player;
+}
+
+// Calculate distance to player
+float EnemyAttackComponent::get_distance_to_player() const
+{
+	if (!_player)
+		return 999999.f; // Return large number if no player
+
+	sf::Vector2f enemy_pos = _parent->get_position();
+	sf::Vector2f player_pos = _player->get_position();
+
+	float dx = player_pos.x - enemy_pos.x;
+	float dy = player_pos.y - enemy_pos.y;
+
+	return std::sqrt(dx * dx + dy * dy);
+}
+
+// Move enemy toward player
+void EnemyAttackComponent::move_toward_player(const float& dt)
+{
+	if (!_player)
+		return;
+
+	sf::Vector2f enemy_pos = _parent->get_position();
+	sf::Vector2f player_pos = _player->get_position();
+
+	// Calculate direction
+	float dx = player_pos.x - enemy_pos.x;
+	float dy = player_pos.y - enemy_pos.y;
+	float distance = std::sqrt(dx * dx + dy * dy);
+
+	if (distance > 0.f)
+	{
+		// Normalize and apply speed
+		dx /= distance;
+		dy /= distance;
+
+		// Only move horizontally, let gravity handle vertical
+		sf::Vector2f current_vel = get_velocity();
+		set_velocity(sf::Vector2f(dx * param::enemy_move_speed, current_vel.y));
+	}
+}
+
+// Handle attack logic
+void EnemyAttackComponent::perform_attack(const float& dt)
+{
+	if (!_can_attack)
+	{
+		_attack_wait_timer += dt;
+
+		// During startup phase
+		if (_is_attacking && _attack_startup_timer < param::enemy_attack_startup)
+		{
+			_attack_startup_timer += dt;
+
+			// Deal damage after startup
+			if (_attack_startup_timer >= param::enemy_attack_startup && !_has_dealt_damage)
+			{
+				// Check if still in range
+				if (player_in_range && _player)
+				{
+					// Deal damage to player
+					auto player_components = _player->get_components<PlayerPhysicsComponent>();
+					if (!player_components.empty())
+					{
+						player_components[0]->reduce_health(param::enemy_attack_damage);
+					}
+					_has_dealt_damage = true;
+				}
+			}
+		}
+
+		// End attack animation
+		if (_is_attacking && _attack_startup_timer >= param::enemy_attack_duration)
+		{
+			_is_attacking = false;
+			_attack_startup_timer = 0.f;
+		}
+
+		// Reset cooldown
+		if (_attack_wait_timer >= param::enemy_attack_cooldown)
+		{
+			_can_attack = true;
+			_attack_wait_timer = 0.f;
+			_has_dealt_damage = false;
+		}
+	}
+	else if (player_in_range)
+	{
+		// Start new attack
+		_can_attack = false;
+		_is_attacking = true;
+		_attack_wait_timer = 0.f;
+		_attack_startup_timer = 0.f;
+		_has_dealt_damage = false;
+	}
+}
+
+// Put enemy to sleep
+void EnemyAttackComponent::put_to_sleep()
+{
+	if (!_is_asleep)
+	{
+		_is_asleep = true;
+		_sleep_timer = 0.f;
+
+		// Stop all movement
+		set_velocity(sf::Vector2f(0.f, 0.f));
+		set_gravity_scale(0.f); // Float in place
+
+		// Change color to indicate sleep
+		auto shape_components = _parent->get_components<ShapeComponent>();
+		if (!shape_components.empty())
+		{
+			shape_components[0]->get_shape().setFillColor(sf::Color(100, 100, 255, 200)); // Light blue, semi-transparent
+		}
+	}
 }
 
 void EnemyAttackComponent::update(const float& dt)
@@ -921,9 +1106,52 @@ void EnemyAttackComponent::update(const float& dt)
 					{
 						entity->set_for_delete();
 					}
+	// If enemy is asleep
+	if (_is_asleep)
+	{
+		_sleep_timer += dt;
+
+		// Update ZZZ text position
+		if (_font_loaded)
+		{
+			sf::Vector2f enemy_pos = _parent->get_position();
+			_zzz_text.setPosition(enemy_pos.x + param::zzz_offset_x,
+				enemy_pos.y + param::zzz_offset_y);
+
+			// Animate ZZZ (bob up and down slightly)
+			float bob = sin(_sleep_timer * 2.0f) * 3.0f;
+			_zzz_text.move(0.f, bob * dt);
+		}
+
+		// Gradually fade out after sleep_fade_time
+		if (_sleep_timer > param::sleep_fade_time)
+		{
+			auto shape_components = _parent->get_components<ShapeComponent>();
+			if (!shape_components.empty())
+			{
+				sf::Color current = shape_components[0]->get_shape().getFillColor();
+				int alpha = std::max(0, static_cast<int>(current.a - 100 * dt));
+				current.a = alpha;
+				shape_components[0]->get_shape().setFillColor(current);
+
+				// Also fade ZZZ text
+				if (_font_loaded)
+				{
+					sf::Color text_color = _zzz_text.getFillColor();
+					text_color.a = alpha;
+					_zzz_text.setFillColor(text_color);
+				}
+
+				// Mark for deletion when fully faded
+				if (alpha <= 0)
+				{
+					_parent->set_for_delete();
 				}
 			}
 		}
+
+		PhysicsComponent::update(dt);
+		return; // Don't do any other behavior while asleep
 	}
 	else
 	{
@@ -936,6 +1164,12 @@ void EnemyAttackComponent::update(const float& dt)
 			set_velocity(sf::Vector2f(0, 0));
 			set_gravity_scale(1);
 		}
+
+	// Handle being put to sleep (health reaches 0)
+	if (_health <= 0)
+	{
+		put_to_sleep();
+		return;
 	}
 	PhysicsComponent::update(dt);
 }
@@ -955,6 +1189,75 @@ bool EnemyAttackComponent::x_distance(int distance)
 	else
 	{
 		return false;
+	// Update health tracking
+	if (_health < _previous_health)
+	{
+		_previous_health = _health;
+		// Could add hit reaction here (flash, shake, etc.)
+	}
+
+	const sf::Vector2f pos = _parent->get_position();
+
+	// Check if player exists
+	if (_player)
+	{
+		float distance = get_distance_to_player();
+
+		// Visual feedback - change color based on state
+		auto shape_components = _parent->get_components<ShapeComponent>();
+		if (!shape_components.empty())
+		{
+			if (_is_attacking)
+			{
+				shape_components[0]->get_shape().setFillColor(sf::Color(255, 100, 100)); // Light red when attacking
+			}
+			else if (distance <= param::enemy_detection_range)
+			{
+				shape_components[0]->get_shape().setFillColor(sf::Color(255, 150, 0)); // Orange when chasing
+			}
+			else
+			{
+				shape_components[0]->get_shape().setFillColor(sf::Color::Red); // Normal red when idle
+			}
+		}
+
+		// State machine
+		if (distance <= param::enemy_attack_range)
+		{
+			// ATTACK STATE
+			// Stop moving
+			set_velocity(sf::Vector2f(0.f, get_velocity().y));
+
+			// Handle attack logic
+			perform_attack(dt);
+		}
+		else if (distance <= param::enemy_detection_range)
+		{
+			// CHASE STATE
+			if (!_is_attacking)
+			{
+				move_toward_player(dt);
+			}
+		}
+		else
+		{
+			// IDLE STATE
+			// Stop moving
+			set_velocity(sf::Vector2f(0.f, get_velocity().y));
+		}
+	}
+
+	PhysicsComponent::update(dt);
+}
+
+// Render the ZZZ text if asleep
+void EnemyAttackComponent::render()
+{
+	PhysicsComponent::render();
+
+	if (_is_asleep && _font_loaded)
+	{
+		Renderer::queue(&_zzz_text);
 	}
 }
 
@@ -978,7 +1281,6 @@ FireballComponent::FireballComponent(Entity* p, sf::Vector2f position, sf::Vecto
 
 	//set the velocity for the fireball
 	b2Body_SetLinearVelocity(_body_id, ph::sv2_to_bv2(velocity));
-
 }
 
 void FireballComponent::update(const float& dt)

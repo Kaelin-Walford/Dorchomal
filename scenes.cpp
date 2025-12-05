@@ -5,12 +5,16 @@
 #include <cstring>
 
 #include "scenes.hpp"
+#include "UI/menu_scene.hpp"
+#include "UI/settings_scene.hpp"
+#include "UI/credits_scene.hpp" 
 #include "game_parameters.hpp"
 #include "renderer.hpp"
 #include "b2_utils.hpp"
 #include "graphics_cmps.hpp"
 #include "physics_cmps.hpp"
 #include "physics.hpp"
+#include "audio_system.hpp"
 
 //remove
 #include "ecm.hpp"
@@ -18,8 +22,15 @@
 using param = Parameters;
 namespace b2 = box2d;
 
+//std::vector<sf::SoundBuffer> AudioSystem::_sound_buffers;
+//std::vector<sf::Sound> AudioSystem::_sounds;
+//sf::Music AudioSystem::_music;
+
 std::shared_ptr<Scene> Scenes::physics;
-std::shared_ptr<Scene> Scenes::kaelinsPlayground;
+std::shared_ptr<KaelinsPlayground> Scenes::kaelinsPlayground;
+std::shared_ptr<MenuScene> Scenes::menuScene;
+std::shared_ptr<SettingsScene> Scenes::settingsScene; 
+std::shared_ptr<CreditsScene> Scenes::creditsScene;
 
 //Load the physics scene, which is a scene that has cubes fall from the sky
 void PhysicsScene::load()
@@ -76,6 +87,9 @@ void PhysicsScene::load()
 		b2BodyId b = b2::create_physics_box(world_id, false, s);
 		bodies.push_back(b);
 	}
+
+	//AudioSystem::add_sound_to_queue();
+	
 }
 
 //The update function for the physics scene
@@ -176,12 +190,17 @@ void KaelinsPlayground::load()
 	_enemy->set_position(sf::Vector2f(1800, 900));
 
 	std::shared_ptr<ShapeComponent> shapew = _enemy->add_component<ShapeComponent>();
-	shapew->set_shape<sf::RectangleShape>(sf::Vector2f(param::player_size[0], param::player_size[1]));
+	shapew->set_shape<sf::RectangleShape>(sf::Vector2f(param::enemy_size[0], param::enemy_size[1]));
 	shapew->get_shape().setFillColor(sf::Color::Red);
-	shapew->get_shape().setOrigin(sf::Vector2f(param::player_size[0] / 2.f, param::player_size[1] / 2.f));
+	shapew->get_shape().setOrigin(sf::Vector2f(param::enemy_size[0] / 2.f, param::enemy_size[1] / 2.f));
 
 	std::shared_ptr<EnemyAttackComponent> ecmp = _enemy->add_component<EnemyAttackComponent>(_player.get(), sf::Vector2f(param::player_size[0], param::player_size[1]), 2);
 	ecmp->create_capsule_shape(sf::Vector2f(param::player_size[0], param::player_size[1]), param::player_weight, param::player_friction, param::player_restitution, -2, "1");
+	std::shared_ptr<EnemyAttackComponent> ecmp = _enemy->add_component<EnemyAttackComponent>(sf::Vector2f(param::enemy_size[0], param::enemy_size[1]));
+	ecmp->create_capsule_shape(sf::Vector2f(param::enemy_size[0], param::enemy_size[1]), param::enemy_weight, param::enemy_friction, param::enemy_restitution, -2, "1");
+
+	// SET PLAYER REFERENCE - CRITICAL FOR AI!
+	ecmp->set_player_entity(_player);
 
 	//test
 	//Create an enemy
@@ -189,12 +208,17 @@ void KaelinsPlayground::load()
 	_test->set_position(sf::Vector2f(1000, 900));
 
 	std::shared_ptr<ShapeComponent> shapet = _test->add_component<ShapeComponent>();
-	shapet->set_shape<sf::RectangleShape>(sf::Vector2f(param::player_size[0], param::player_size[1]));
+	shapet->set_shape<sf::RectangleShape>(sf::Vector2f(param::enemy_size[0], param::enemy_size[1]));
 	shapet->get_shape().setFillColor(sf::Color::Red);
-	shapet->get_shape().setOrigin(sf::Vector2f(param::player_size[0] / 2.f, param::player_size[1] / 2.f));
+	shapet->get_shape().setOrigin(sf::Vector2f(param::enemy_size[0] / 2.f, param::enemy_size[1] / 2.f));
+
+	std::shared_ptr<EnemyAttackComponent> tcmp = _test->add_component<EnemyAttackComponent>(sf::Vector2f(param::enemy_size[0], param::enemy_size[1]));
+	tcmp->create_capsule_shape(sf::Vector2f(param::enemy_size[0], param::enemy_size[1]), param::enemy_weight, param::enemy_friction, param::enemy_restitution, -2, "2");
 
 	std::shared_ptr<EnemyAttackComponent> tcmp = _test->add_component<EnemyAttackComponent>(_player.get(), sf::Vector2f(param::player_size[0], param::player_size[1]), 3);
 	tcmp->create_capsule_shape(sf::Vector2f(param::player_size[0], param::player_size[1]), param::player_weight, param::player_friction, param::player_restitution, -2, "2");
+	// SET PLAYER REFERENCE
+	tcmp->set_player_entity(_player);
 
 	player_user_data = cmp->get_user_data();
 	enemy_user_data = ecmp->get_user_data();
@@ -205,40 +229,57 @@ void KaelinsPlayground::load()
 
 void KaelinsPlayground::update(const float& dt)
 {
-	//restarts the scene if its set to restart
-	if (scene_restart)
+	// Handle escape to pause
+	static bool escPressed = false;  
+
+	if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape))
 	{
-		unload();
-		load();
+		if (!escPressed)
+		{
+			toggle_pause();
+			escPressed = true;
+		}
 	}
 	else
 	{
-		//set up the contact events and get the number of events
-		b2ContactEvents contact_event = Physics::get_contact_events();
-		int number_of_contact_events = contact_event.beginCount;
+		escPressed = false;
+	}
 
-		//set up the sensor events and get the number of events
-		b2SensorEvents sensor_event = Physics::get_sensor_events();
-		int number_of_sensor_events_start = sensor_event.beginCount;
-		int number_of_sensor_events_end = sensor_event.endCount;
 
-		//get the player component
-		auto player = _player->get_components<PlayerPhysicsComponent>();
-
-		//loop through each contact event
-		for (int i = 0; i < number_of_contact_events; i++)
+	// Only update game if not paused
+	if (!_is_paused)
+	{
+		//restarts the scene if its set to restart
+		if (scene_restart)
 		{
-			//get current event
-			b2ContactBeginTouchEvent* begin_contact_event = contact_event.beginEvents + i;
-			char* body_1 = (char*)b2Body_GetUserData(b2Shape_GetBody(begin_contact_event->shapeIdA));
-			char* body_2 = (char*)b2Body_GetUserData(b2Shape_GetBody(begin_contact_event->shapeIdB));
-			char* shape_1 = (char*)b2Shape_GetUserData(begin_contact_event->shapeIdA);
-			char* shape_2 = (char*)b2Shape_GetUserData(begin_contact_event->shapeIdB);
+			unload();
+			load();
+		}
+		else
+		{
+			//set up the contact events and get the number of events
+			b2ContactEvents contact_event = Physics::get_contact_events();
+			int number_of_contact_events = contact_event.beginCount;
 
-			if (body_1 != nullptr && body_2 != nullptr)
+			//set up the sensor events and get the number of events
+			b2SensorEvents sensor_event = Physics::get_sensor_events();
+			int number_of_sensor_events_start = sensor_event.beginCount;
+			int number_of_sensor_events_end = sensor_event.endCount;
+
+			//get the player component
+			auto player = _player->get_components<PlayerPhysicsComponent>();
+
+			//loop through each contact event
+			for (int i = 0; i < number_of_contact_events; i++)
 			{
-				//If the player walks into an enemy
-				if ((!strcmp(body_1, "Player") && !strcmp(body_2, "Enemy")) || (!strcmp(body_2, "Player") && !strcmp(body_1, "Enemy")))
+				//get current event
+				b2ContactBeginTouchEvent* begin_contact_event = contact_event.beginEvents + i;
+				char* body_1 = (char*)b2Body_GetUserData(b2Shape_GetBody(begin_contact_event->shapeIdA));
+				char* body_2 = (char*)b2Body_GetUserData(b2Shape_GetBody(begin_contact_event->shapeIdB));
+				char* shape_1 = (char*)b2Shape_GetUserData(begin_contact_event->shapeIdA);
+				char* shape_2 = (char*)b2Shape_GetUserData(begin_contact_event->shapeIdB);
+
+				if (body_1 != nullptr && body_2 != nullptr)
 				{
 					//reduce health and apply knockback
 					player[0]->reduce_health(1);
@@ -250,11 +291,17 @@ void KaelinsPlayground::update(const float& dt)
 						}
 					}
 				}
+					//If the player walks into an enemy
+					if ((!strcmp(body_1, "Player") && !strcmp(body_2, "Enemy")) || (!strcmp(body_2, "Player") && !strcmp(body_1, "Enemy")))
+					{
+						//player[0]->reduce_health(1);
+					}
 
-				//If an enemy gets hit by a fireball 
-				else if ((!strcmp(body_1, "Fireball") && !strcmp(body_2, "Enemy")) || (!strcmp(body_2, "Fireball") && !strcmp(body_1, "Enemy")))
-				{
-					find_which_enemy_to_defeat(shape_1, shape_2);
+					//If an enemy gets hit by a fireball 
+					else if ((!strcmp(body_1, "Fireball") && !strcmp(body_2, "Enemy")) || (!strcmp(body_2, "Fireball") && !strcmp(body_1, "Enemy")))
+					{
+						find_which_enemy_to_defeat(shape_1, shape_2);
+					}
 				}
 			}
 		}
@@ -313,10 +360,46 @@ void KaelinsPlayground::update(const float& dt)
 						b2ShapeId sensor_shapes[1];
 						b2Body_GetShapes(b2Shape_GetBody(end_sensor_event->sensorShapeId), sensor_shapes, 1);
 						find_which_enemy_has_the_player_in_range(sensor_shapes, false);
+			//Loop through each start sensor events
+			for (int i = 0; i < number_of_sensor_events_start; i++)
+			{
+				b2SensorBeginTouchEvent* begin_sensor_event = sensor_event.beginEvents + i;
+
+				char* body_1 = (char*)b2Body_GetUserData(b2Shape_GetBody(begin_sensor_event->sensorShapeId));
+				char* body_2 = (char*)b2Body_GetUserData(b2Shape_GetBody(begin_sensor_event->visitorShapeId));
+				char* shape_1 = (char*)b2Shape_GetUserData(begin_sensor_event->sensorShapeId);
+				char* shape_2 = (char*)b2Shape_GetUserData(begin_sensor_event->visitorShapeId);
+
+				if (body_1 != nullptr && body_2 != nullptr)
+				{
+					//If the player is in melee range of an enemy
+					if (((!strcmp(shape_1, "Melee") && !strcmp(body_2, "Enemy")) || (!strcmp(shape_2, "Melee") && !strcmp(body_1, "Enemy"))))
+					{
+						find_which_enemy_is_in_range(shape_1, shape_2, true);
+					}
+				}
+
+			}
+			//loop through each end sensor events
+			for (int i = 0; i < number_of_sensor_events_end; i++)
+			{
+				b2SensorEndTouchEvent* end_sensor_event = sensor_event.endEvents + i;
+				if (b2Shape_IsValid(end_sensor_event->visitorShapeId))
+				{
+					char* ebody_1 = (char*)b2Body_GetUserData(b2Shape_GetBody(end_sensor_event->sensorShapeId));
+					char* ebody_2 = (char*)b2Body_GetUserData(b2Shape_GetBody(end_sensor_event->visitorShapeId));
+					char* eshape_1 = (char*)b2Shape_GetUserData(end_sensor_event->sensorShapeId);
+					char* eshape_2 = (char*)b2Shape_GetUserData(end_sensor_event->visitorShapeId);
+					if (ebody_1 != nullptr && ebody_2 != nullptr)
+					{
+						//If the player leaves melee range of an enemy
+						if (((!strcmp(eshape_1, "Melee") && !strcmp(ebody_2, "Enemy")) || (!strcmp(eshape_2, "Melee") && !strcmp(ebody_1, "Enemy"))))
+						{
+							find_which_enemy_is_in_range(eshape_1, eshape_2, false);
+						}
 					}
 				}
 			}
-		}
 
 		//if the player attacks an enemy
 		if (player[0]->attacking)
@@ -373,12 +456,32 @@ void KaelinsPlayground::update(const float& dt)
 			{
 				enemy->set_velocity(sf::Vector2f(0, _enemies[i]->get_components<EnemyAttackComponent>()[0]->get_velocity().y));
 			}
+			//if the player attacks an enemy
+			if (player[0]->_attacking)
+			{
+				for (int i = 0; i < _enemies.size(); i++)
+				{
+					//checks that the player is in range with any enemy and deals damage if so
+					if (_enemies[i]->get_components<EnemyAttackComponent>()[0]->player_in_range)
+					{
+						// Reduce enemy health instead of instant delete
+						_enemies[i]->get_components<EnemyAttackComponent>()[0]->reduce_health(1);
+					}
+				}
+			}
+
+			//If the player dies
+			/*if (player[0]->get_health() <= 0)
+			{
+				scene_restart = true;
+			}*/
+
+			Scene::update(dt);
 		}
 	}
-
 }
 
-//Function to see which enemy the player defeated
+//Function to see which enemy was hit 
 void KaelinsPlayground::find_which_enemy_to_defeat(char* shape_1, char* shape_2)
 {
 	for (int i = 0; i < _enemies.size(); i++)
@@ -386,6 +489,8 @@ void KaelinsPlayground::find_which_enemy_to_defeat(char* shape_1, char* shape_2)
 		if (!strcmp(shape_1, (char*)_enemies[i]->get_components<EnemyAttackComponent>()[0]->get_shape_user_data()) || !strcmp(shape_2, (char*)_enemies[i]->get_components<EnemyAttackComponent>()[0]->get_shape_user_data()))
 		{
 			damage_enemy(i, 2);
+			// Reduce enemy health instead of instant delete
+			_enemies[i]->get_components<EnemyAttackComponent>()[0]->reduce_health(1);
 		}
 	}
 }
@@ -464,6 +569,10 @@ void KaelinsPlayground::enemy_knockback(int index)
 	}
 }
 
+
+
+
+
 void KaelinsPlayground::render()
 {
 	for (std::shared_ptr<sf::RectangleShape> sprite : sprites)
@@ -473,6 +582,28 @@ void KaelinsPlayground::render()
 
 	Scene::render();
 	_entities.render();
+
+	if (_is_paused && Scenes::menuScene)
+	{
+		Scenes::menuScene->render();
+	}
+}
+
+void KaelinsPlayground::toggle_pause()
+{
+	_is_paused = !_is_paused;
+
+	if (Scenes::menuScene)
+	{
+		if (_is_paused)
+		{
+			Scenes::menuScene->show_pause_menu();
+		}
+		else
+		{
+			Scenes::menuScene->hide_menus();
+		}
+	}
 }
 
 void KaelinsPlayground::unload()

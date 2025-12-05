@@ -1,6 +1,6 @@
 #pragma once
-#include "game_system.hpp"
-#include "box2d/box2d.h"
+#include "engine/game_system.hpp"
+#include <box2d/box2d.h>
 
 class PhysicsScene : public Scene
 {
@@ -25,6 +25,10 @@ public:
 	void load()override;
 	void unload() override;
 
+	void toggle_pause();
+	bool is_paused() const { return _is_paused; }
+	void set_paused(bool paused) { _is_paused = paused; }
+
 	//Collision functions
 	void find_which_enemy_to_defeat(char* shape_1, char* shape_2);
 	void find_which_enemy_is_in_range(char* visitor_shape, bool in_range);
@@ -39,6 +43,7 @@ private:
 	std::vector<b2BodyId> bodies;
 	std::vector<std::shared_ptr<sf::RectangleShape>> sprites;
 	std::shared_ptr<Entity> _player;
+	bool _is_paused = false;
 	std::vector<std::shared_ptr<Entity>> _enemies;
 	int timer = 0;
 	bool scene_restart;
@@ -49,8 +54,15 @@ private:
 	const void* fireball_user_data;
 };
 
+class MenuScene;
+class SettingsScene;
+class CreditsScene;
+
 struct Scenes
 {
 	static std::shared_ptr<Scene> physics;
-	static std::shared_ptr<Scene> kaelinsPlayground;
+	static std::shared_ptr<KaelinsPlayground> kaelinsPlayground;
+	static std::shared_ptr<MenuScene> menuScene;
+	static std::shared_ptr<SettingsScene> settingsScene;
+	static std::shared_ptr<CreditsScene> creditsScene;
 };
