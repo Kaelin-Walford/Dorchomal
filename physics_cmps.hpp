@@ -66,14 +66,13 @@ public:
 	void attack_timer(const float& dt);
 	void fireball(sf::Vector2f velocity, float rotation, sf::Vector2f position);
 
-	//Function to destroy the body
-	//void destroy_body();
-
 	//Allows the scene to know when the entity is attacking
 	bool attacking;
 	bool in_range_of_target;
 
 	bool _facing_right;
+
+	bool knockback;
 
 	~PhysicsComponent() override;
 protected:
@@ -99,6 +98,7 @@ protected:
 	float _attack_cooldown;
 	float _attack_duration;
 	float _time_to_start_attack;
+	float _knockback_duration;
 
 	//stores the health of the previous frame
 	int _previous_health;
@@ -119,7 +119,6 @@ protected:
 	bool _can_dash;
 	float _dash_current_duration;
 	bool _is_dashing;
-	float _knockback_duration;
 	bool _just_dashed;
 
 	std::shared_ptr<Entity> _target;
@@ -132,7 +131,7 @@ public:
 	void update(const float &dt) override;
 	void dash(bool rightSide, bool topSide);
 	std::tuple<sf::Vector2f, float> fireball_direction(sf::Vector2f target_position, sf::Vector2f player_position);
-	bool knockback;
+	
 
 	explicit PlayerPhysicsComponent(Entity* p, const sf::Vector2f& size);
 

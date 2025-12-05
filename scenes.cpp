@@ -275,7 +275,6 @@ void KaelinsPlayground::update(const float& dt)
 					if (!strcmp(sensor_shape, "Melee") && !strcmp(sensor_body, "Player") && !strcmp(visitor_body, "Enemy"))
 					{
 						find_which_enemy_is_in_range(visitor_shape, true);
-						std::cout << "playerstart\n";
 					}
 
 					//If the enemey is in melee range of the player
@@ -285,7 +284,6 @@ void KaelinsPlayground::update(const float& dt)
 						b2ShapeId sensor_shapes[1];
 						b2Body_GetShapes(b2Shape_GetBody(begin_sensor_event->sensorShapeId), sensor_shapes, 1);
 						find_which_enemy_has_the_player_in_range(sensor_shapes, true);
-						std::cout << "enemystart\n";
 					}
 				}
 			}
@@ -305,14 +303,13 @@ void KaelinsPlayground::update(const float& dt)
 					//If the player leaves melee range of an enemy
 					if (!strcmp(end_sensor_shape, "Melee") && !strcmp(end_sensor_body, "Player") && !strcmp(end_visitor_body, "Enemy"))
 					{
-						std::cout << "playerend\n";
 						find_which_enemy_is_in_range(end_visitor_shape, false);
 					}
 
 					//If the enemy leaves melee range of the player
 					if (!strcmp(end_sensor_shape, "Melee") && !strcmp(end_sensor_body, "Enemy") && !strcmp(end_visitor_body, "Player"))
 					{
-						std::cout << "enemyend\n";
+						//set to 1 as the main shape will always be in the first spot
 						b2ShapeId sensor_shapes[1];
 						b2Body_GetShapes(b2Shape_GetBody(end_sensor_event->sensorShapeId), sensor_shapes, 1);
 						find_which_enemy_has_the_player_in_range(sensor_shapes, false);
@@ -327,7 +324,6 @@ void KaelinsPlayground::update(const float& dt)
 			for (int i = 0; i < _enemies.size(); i++)
 			{
 				//checks that the player is in range with any enemy and deals damage if so
-				//std::cout << _enemies[i]->get_components<EnemyAttackComponent>()[0]->player_in_range;
 				bool facing_enemy = false;
 				if ((_enemies[i]->get_position().x < _player->get_position().x) && !_player->get_components<PlayerPhysicsComponent>()[0]->_facing_right)
 				{
@@ -342,6 +338,7 @@ void KaelinsPlayground::update(const float& dt)
 				{
 					if (_enemies[i]->get_components<EnemyAttackComponent>()[0]->player_in_range)
 					{
+						enemy_knockback(i);
 						damage_enemy(i, 1);
 					}
 				}
@@ -360,16 +357,22 @@ void KaelinsPlayground::update(const float& dt)
 		}
 
 		//If the player dies
-		/*if (player[0]->get_health() <= 0)
+		if (player[0]->get_health() <= 0)
 		{
 			scene_restart = true;
-		}*/
+		}
 
 		Scene::update(dt);
 
+		//sets enemy velocity on the x axis to zero to avoid being pushed by the player
 		for (int i = 0; i < _enemies.size(); i++)
 		{
-			_enemies[i]->get_components<EnemyAttackComponent>()[0]->set_velocity(sf::Vector2f(0, _enemies[i]->get_components<EnemyAttackComponent>()[0]->get_velocity().y));
+			auto enemy = _enemies[i]->get_components<EnemyAttackComponent>()[0];
+			//checks that the enemy is not currently being knocked back
+			if(!enemy->knockback)
+			{
+				enemy->set_velocity(sf::Vector2f(0, _enemies[i]->get_components<EnemyAttackComponent>()[0]->get_velocity().y));
+			}
 		}
 	}
 
@@ -419,8 +422,8 @@ void KaelinsPlayground::find_which_enemy_has_the_player_in_range(b2ShapeId senso
 void KaelinsPlayground::damage_enemy(int which_enemy, int damage)
 {
 	auto enemy = _enemies[which_enemy]->get_components<EnemyAttackComponent>()[0];
-	std::cout << enemy->get_health();
 	enemy->reduce_health(damage);
+
 	if (enemy->get_health() <= 0)
 	{
 		_enemies[which_enemy]->set_for_delete();
@@ -432,15 +435,32 @@ void KaelinsPlayground::damage_enemy(int which_enemy, int damage)
 //Function to knockback the player
 void KaelinsPlayground::player_knockback(int enemy)
 {
-	_player->get_components<PlayerPhysicsComponent>()[0]->knockback = true;
-	_player->get_components<PlayerPhysicsComponent>()[0]->set_gravity_scale(0);
+	auto player = _player->get_components<PlayerPhysicsComponent>()[0];
+	player->knockback = true;
+	player->set_gravity_scale(0);
 	if (_player->get_position().x < _enemies[enemy]->get_position().x)
 	{
-		_player->get_components<PlayerPhysicsComponent>()[0]->set_velocity(sf::Vector2f(-param::knockback_force[0], param::knockback_force[1]));
+		player->set_velocity(sf::Vector2f(-param::knockback_force[0], param::knockback_force[1]));
 	}
 	else
 	{
-		_player->get_components<PlayerPhysicsComponent>()[0]->set_velocity(sf::Vector2f(param::knockback_force[0], param::knockback_force[1]));
+		player->set_velocity(sf::Vector2f(param::knockback_force[0], param::knockback_force[1]));
+	}
+}
+
+//Function to knockback the enemy provided
+void KaelinsPlayground::enemy_knockback(int index)
+{
+	auto enemy = _enemies[index]->get_components<EnemyAttackComponent>()[0];
+	enemy->knockback = true;
+	enemy->set_gravity_scale(0);
+	if (_enemies[index]->get_position().x < _player->get_position().x)
+	{
+		enemy->set_velocity(sf::Vector2f(-param::knockback_force[0], param::knockback_force[1]));
+	}
+	else
+	{
+		enemy->set_velocity(sf::Vector2f(param::knockback_force[0], param::knockback_force[1]));
 	}
 }
 

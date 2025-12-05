@@ -27,7 +27,7 @@ struct Parameters
 	static constexpr float player_max_vel[2] = { 200.f,400.f };
 	static constexpr float player_friction = 0.f;
 	static constexpr float player_restitution = 0.0f;
-	static constexpr float health = 100;
+	static constexpr float health = 3;
 
 	//Controls
 	static constexpr sf::Keyboard::Key move_left = sf::Keyboard::A;

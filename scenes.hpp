@@ -33,6 +33,7 @@ public:
 	//Attack Functions
 	void damage_enemy(int which_enemy, int damage);
 	void player_knockback(int enemy);
+	void enemy_knockback(int index);
 private:
 	b2WorldId world_id;
 	std::vector<b2BodyId> bodies;

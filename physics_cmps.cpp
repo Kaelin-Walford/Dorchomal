@@ -438,21 +438,6 @@ void PhysicsComponent::fireball(sf::Vector2f velocity, float rotation, sf::Vecto
 }
 
 /*
-void PhysicsComponent::destroy_body()
-{
-	//if (b2Body_IsValid(_body_id))
-	//{
-	b2DestroyShape(_shape_id, true);
-	_shape_id = b2_nullShapeId;
-	//b2DestroyShape(_attack_hitbox_shape_id, true);
-		//_attack_hitbox_shape_id = b2_nullShapeId;
-
-		b2DestroyBody(_body_id);
-		_body_id = b2_nullBodyId;
-	//}
-}*/
-
-/*
 *	Player Physics Component
 */
 
@@ -503,17 +488,6 @@ PlayerPhysicsComponent::PlayerPhysicsComponent(Entity* p, const sf::Vector2f& si
 
 void PlayerPhysicsComponent::update(const float& dt)
 {
-	//If the players health has reduced
-	if (_health < _previous_health)
-	{
-		_previous_health = _health;
-	}
-	if (_health <= 0)
-	{
-		teleport(sf::Vector2f(300, 300));
-		_health = param::health;
-	}
-
 	const sf::Vector2f pos = _parent->get_position();
 	b2Vec2 b2_pos = ph::sv2_to_bv2(ph::invert_height(pos, param::game_height));
 
@@ -549,8 +523,6 @@ void PlayerPhysicsComponent::update(const float& dt)
 		//Are we in air?
 		if (!_grounded)
 		{
-			// Check to see if we have landed yet
-			//_grounded = is_grounded();
 			// disable friction while jumping
 			set_friction(0.f);
 		}
@@ -577,7 +549,7 @@ void PlayerPhysicsComponent::update(const float& dt)
 				{
 					_facing_right = true;
 				}
-				
+
 			}
 			else
 			{
@@ -589,7 +561,7 @@ void PlayerPhysicsComponent::update(const float& dt)
 			}
 			_just_dashed = false;
 		}
-		else if(!_just_dashed)
+		else if (!_just_dashed)
 		{
 			//Stop moving the player left or right when there is to imput pressed
 			set_velocity(sf::Vector2f(0, get_velocity().y));
@@ -688,7 +660,6 @@ void PlayerPhysicsComponent::update(const float& dt)
 			{
 				set_velocity(sf::Vector2f(get_velocity().x, param::player_jump));
 				teleport(sf::Vector2f(pos.x, pos.y - 2.0f));
-				//impulse(sf::Vector2f(0, -param::player_jump));
 			}
 		}
 
@@ -721,7 +692,7 @@ void PlayerPhysicsComponent::update(const float& dt)
 			}
 		}
 	}
-	else if(_is_dashing)
+	else if (_is_dashing)
 	{
 		//Runs while dashing
 		_dash_current_duration += dt;
@@ -731,7 +702,6 @@ void PlayerPhysicsComponent::update(const float& dt)
 			_dash_current_duration = 0.f;
 			set_velocity(sf::Vector2f(0, 30));
 			set_gravity_scale(1);
-			//_just_dashed = true;
 		}
 	}
 	else
@@ -826,7 +796,7 @@ std::tuple<sf::Vector2f, float> PlayerPhysicsComponent::fireball_direction(sf::V
 	{
 		fireball_rotation += M_PI;
 		fireball_rotation = -fireball_rotation;
-		
+
 	}
 	else if (xa < 0)
 	{
@@ -843,8 +813,8 @@ std::tuple<sf::Vector2f, float> PlayerPhysicsComponent::fireball_direction(sf::V
 EnemyAttackComponent::EnemyAttackComponent(Entity* p, Entity* player, const sf::Vector2f& size, int type) : PhysicsComponent(p, true)
 {
 	_size = ph::sv2_to_bv2(size);
-	
-	
+
+
 	player_in_range = false;
 	in_range_of_player = false;
 	_player = player;
@@ -854,6 +824,8 @@ EnemyAttackComponent::EnemyAttackComponent(Entity* p, Entity* player, const sf::
 	_time_to_start_attack = param::enemy_time_to_start_attack;
 	_fireball_wait_timer = 0;
 	_facing_right = false;
+	knockback = false;
+	_knockback_duration = 0;
 
 	//1 - enemy without attacks - 2 melee attacks enemy - 3 fireball attack enemy
 	_enemy_type = type;
@@ -882,26 +854,11 @@ EnemyAttackComponent::EnemyAttackComponent(Entity* p, Entity* player, const sf::
 
 void EnemyAttackComponent::update(const float& dt)
 {
-	//If the enemys health has reduced
-	if (_health < _previous_health)
-	{
-		_previous_health = _health;
-		if (_health <= 0)
-		{
-			//add code
-		}
-	}
-	if (_health <= 0)
-	{
-		//add code
-		//destroy_body();
-	}
+	const sf::Vector2f pos = _parent->get_position();
+	b2Vec2 b2_pos = ph::sv2_to_bv2(ph::invert_height(pos, param::game_height));
 
-	else
+	if(!knockback)
 	{
-		const sf::Vector2f pos = _parent->get_position();
-		b2Vec2 b2_pos = ph::sv2_to_bv2(ph::invert_height(pos, param::game_height));
-
 		if (_enemy_type == 2)
 		{
 			attack_timer(dt);
@@ -929,7 +886,7 @@ void EnemyAttackComponent::update(const float& dt)
 			}
 		}
 
-		if(_enemy_type == 3)
+		if (_enemy_type == 3)
 		{
 			//Fireball timer
 			if (!_can_use_fireball)
@@ -937,7 +894,6 @@ void EnemyAttackComponent::update(const float& dt)
 				_fireball_wait_timer += dt;
 				if (_fireball_wait_timer >= param::fireball_cooldown)
 				{
-					//_can_use_fireball = true;
 					_fireball_wait_timer = 0;
 				}
 			}
@@ -968,9 +924,20 @@ void EnemyAttackComponent::update(const float& dt)
 				}
 			}
 		}
-
-		PhysicsComponent::update(dt);
 	}
+	else
+	{
+		//runs while being knockedback
+		_knockback_duration += dt;
+		if (_knockback_duration >= param::knockmack_duration)
+		{
+			knockback = false;
+			_knockback_duration = 0;
+			set_velocity(sf::Vector2f(0, 0));
+			set_gravity_scale(1);
+		}
+	}
+	PhysicsComponent::update(dt);
 }
 
 //Returns true if  the distance between this enemy and the player only based on the x axis is less than or equal to the provided distance
@@ -1023,8 +990,6 @@ void FireballComponent::update(const float& dt)
 	{
 		_for_deletion = true;
 	}
-
-	//std::cout << b2Body_GetRotation(_body_id).s << "\n";
 
 	_parent->set_position(ph::invert_height(ph::bv2_to_sv2(b2Body_GetPosition(_body_id)),
 		param::game_height));
