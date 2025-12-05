@@ -215,9 +215,10 @@ void KaelinsPlayground::load()
 void KaelinsPlayground::update(const float& dt)
 {
 	// Handle escape to pause
+	static bool escPressed = false;  
+
 	if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape))
 	{
-		static bool escPressed = false;
 		if (!escPressed)
 		{
 			toggle_pause();
@@ -226,9 +227,9 @@ void KaelinsPlayground::update(const float& dt)
 	}
 	else
 	{
-		static bool escPressed = false;
 		escPressed = false;
 	}
+
 
 	// Only update game if not paused
 	if (!_is_paused)
