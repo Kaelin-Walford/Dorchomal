@@ -153,6 +153,11 @@ PhysicsComponent::PhysicsComponent(Entity* p, bool dyn) : Component(p), _dynamic
 	_can_attack = true;
 	_attacking = false;
 	_in_range_of_target = false;
+
+	//Sounds
+	_attack_sound.add_sound("Slash.wav");
+	_walk_sound.add_sound("walk.wav");
+	_fireball_sound.add_sound("Slash.wav");
 }
 
 //Restitution is the bounciness of the object
@@ -396,6 +401,9 @@ PlayerPhysicsComponent::PlayerPhysicsComponent(Entity* p, const sf::Vector2f& si
 	_health = param::player_max_health;
 	_previous_health = _health;
 
+	//Sounds
+	_dash_sound.add_sound("dash.wav");
+
 	//define the fireball target shape
 	_target = make_entity();
 	_target->set_position(sf::Vector2f(0, 0));
@@ -495,8 +503,7 @@ void PlayerPhysicsComponent::update(const float& dt)
 	if (!_is_dashing)
 	{
 		//Handles left and right movement
-		if (sf::Keyboard::isKeyPressed(param::move_left) ||
-			sf::Keyboard::isKeyPressed(param::move_right))
+		if (sf::Keyboard::isKeyPressed(param::move_left) || sf::Keyboard::isKeyPressed(param::move_right))
 		{
 			// Moving Either Left or Right
 			if (sf::Keyboard::isKeyPressed(param::move_right))
@@ -508,6 +515,14 @@ void PlayerPhysicsComponent::update(const float& dt)
 			{
 				set_velocity(sf::Vector2f(-_ground_speed, get_velocity().y));
 				_facing_right = false;
+			}
+			//If on the ground and not playing a sound then play walk sound
+			if (_grounded)
+			{
+				if (_walk_sound.is_sound_playing() == sf::SoundSource::Stopped)
+				{
+					_walk_sound.play_sound();
+				}
 			}
 		}
 		else
@@ -527,8 +542,8 @@ void PlayerPhysicsComponent::update(const float& dt)
 		{
 			if (sf::Keyboard::isKeyPressed(param::move_dash))
 			{
-				//Add dash sound effect to the queue
-				AudioSystem::add_sound_to_queue("dash.wav");
+				//Play dash sound
+				_fireball_sound.play_sound();
 
 				//angle dashes if the user presses multiple directions
 				if (sf::Keyboard::isKeyPressed(param::move_left) && sf::Keyboard::isKeyPressed(param::look_up))
@@ -599,6 +614,9 @@ void PlayerPhysicsComponent::update(const float& dt)
 			_target->set_position(sf::Vector2f(GameSystem::get_mouse_position()));
 			if (sf::Mouse::isButtonPressed(param::attack_fire_ball_fire) && _can_use_fireball)
 			{
+				//play fireball sound
+				_fireball_sound.play_sound();
+
 				//get the velocity for the fireball
 				sf::Vector2f velocity = fireball(_target->get_position(), pos);
 
@@ -1054,9 +1072,6 @@ FireballComponent::FireballComponent(Entity* p, sf::Vector2f position, sf::Vecto
 
 	//set the velocity for the fireball
 	b2Body_SetLinearVelocity(_body_id, ph::sv2_to_bv2(velocity));
-
-	//Add fireball sound effect to the queue
-	AudioSystem::add_sound_to_queue("fireball.wav");
 }
 
 void FireballComponent::update(const float& dt)

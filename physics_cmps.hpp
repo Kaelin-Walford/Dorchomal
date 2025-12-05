@@ -2,6 +2,7 @@
 #include "ecm.hpp"
 #include <array>
 #include <box2d/box2d.h>
+#include "audio_system.hpp"
 
 //forward declaration
 class FireballComponent;
@@ -90,11 +91,25 @@ protected:
 	//entities
 	EntityManager _entities;
 	std::vector<std::shared_ptr<FireballComponent>> _fireball_components;
+
+	//Stores sounds
+	AudioSystem _attack_sound;
+	AudioSystem _hit_sound;
+	AudioSystem _walk_sound;
+	AudioSystem _fireball_sound;
 };
 
 //The class that handles player controls
 class PlayerPhysicsComponent : public PhysicsComponent
 {
+public:
+	void update(const float& dt) override;
+	void dash(bool rightSide, bool topSide);
+	sf::Vector2f fireball(sf::Vector2f target_position, sf::Vector2f player_position);
+
+	explicit PlayerPhysicsComponent(Entity* p, const sf::Vector2f& size);
+
+	PlayerPhysicsComponent() = delete;
 protected:
 	b2Vec2 _size;
 	sf::Vector2f _max_velocity;
@@ -105,18 +120,10 @@ protected:
 	float _dash_current_duration;
 	std::shared_ptr<Entity> _target;
 
-
-
 	bool is_grounded() const;
 
-public:
-	void update(const float& dt) override;
-	void dash(bool rightSide, bool topSide);
-	sf::Vector2f fireball(sf::Vector2f target_position, sf::Vector2f player_position);
-
-	explicit PlayerPhysicsComponent(Entity* p, const sf::Vector2f& size);
-
-	PlayerPhysicsComponent() = delete;
+	//Sounds
+	AudioSystem _dash_sound;
 };
 
 //The class used to create an enemy that can attack - will be merge with enemy movement
