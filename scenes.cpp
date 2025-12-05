@@ -350,9 +350,6 @@ void KaelinsPlayground::update(const float& dt)
 			Scene::update(dt);
 		}
 	}
-
-	//Play Sounds
-	AudioSystem::play_sounds_in_queue();
 }
 
 //Function to see which enemy was hit 
