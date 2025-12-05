@@ -12,12 +12,17 @@
 #include "graphics_cmps.hpp"
 #include "physics_cmps.hpp"
 #include "physics.hpp"
+#include "audio_system.hpp"
 
 //remove
 #include "ecm.hpp"
 
 using param = Parameters;
 namespace b2 = box2d;
+
+//std::vector<sf::SoundBuffer> AudioSystem::_sound_buffers;
+//std::vector<sf::Sound> AudioSystem::_sounds;
+//sf::Music AudioSystem::_music;
 
 std::shared_ptr<Scene> Scenes::physics;
 std::shared_ptr<KaelinsPlayground> Scenes::kaelinsPlayground;
@@ -79,6 +84,9 @@ void PhysicsScene::load()
 		b2BodyId b = b2::create_physics_box(world_id, false, s);
 		bodies.push_back(b);
 	}
+
+	//AudioSystem::add_sound_to_queue();
+	
 }
 
 //The update function for the physics scene
@@ -342,6 +350,9 @@ void KaelinsPlayground::update(const float& dt)
 			Scene::update(dt);
 		}
 	}
+
+	//Play Sounds
+	AudioSystem::play_sounds_in_queue();
 }
 
 //Function to see which enemy was hit 

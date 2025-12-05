@@ -8,10 +8,15 @@
 #include "renderer.hpp"
 #include <algorithm>
 #include <cmath>
+#include "audio_system.hpp"
 
 using param = Parameters;
 using ph = Physics;
 //using ls = LevelSystem;
+
+std::vector<sf::SoundBuffer> AudioSystem::_sound_buffers;
+std::vector<sf::Sound> AudioSystem::_sounds;
+sf::Music AudioSystem::_music;
 
 /*
 *	Platform Component
@@ -522,6 +527,9 @@ void PlayerPhysicsComponent::update(const float& dt)
 		{
 			if (sf::Keyboard::isKeyPressed(param::move_dash))
 			{
+				//Add dash sound effect to the queue
+				AudioSystem::add_sound_to_queue("dash.wav");
+
 				//angle dashes if the user presses multiple directions
 				if (sf::Keyboard::isKeyPressed(param::move_left) && sf::Keyboard::isKeyPressed(param::look_up))
 				{
@@ -1047,6 +1055,8 @@ FireballComponent::FireballComponent(Entity* p, sf::Vector2f position, sf::Vecto
 	//set the velocity for the fireball
 	b2Body_SetLinearVelocity(_body_id, ph::sv2_to_bv2(velocity));
 
+	//Add fireball sound effect to the queue
+	AudioSystem::add_sound_to_queue("fireball.wav");
 }
 
 void FireballComponent::update(const float& dt)
