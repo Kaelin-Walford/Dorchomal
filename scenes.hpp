@@ -1,6 +1,6 @@
 #pragma once
-#include "game_system.hpp"
-#include "box2d/box2d.h"
+#include "engine/game_system.hpp"
+#include <box2d/box2d.h>
 
 class PhysicsScene : public Scene
 {
@@ -49,12 +49,14 @@ private:
 };
 
 class MenuScene;
-class SettingsScene;  
+class SettingsScene;
+class CreditsScene;
 
 struct Scenes
 {
 	static std::shared_ptr<Scene> physics;
 	static std::shared_ptr<KaelinsPlayground> kaelinsPlayground;
 	static std::shared_ptr<MenuScene> menuScene;
-	static std::shared_ptr<SettingsScene> settingsScene;  
+	static std::shared_ptr<SettingsScene> settingsScene;
+	static std::shared_ptr<CreditsScene> creditsScene;
 };

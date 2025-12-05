@@ -5,7 +5,8 @@
 
 #include "scenes.hpp"
 #include "UI/menu_scene.hpp"
-#include "UI/settings_scene.hpp"  
+#include "UI/settings_scene.hpp"
+#include "UI/credits_scene.hpp" 
 #include "game_parameters.hpp"
 #include "renderer.hpp"
 #include "b2_utils.hpp"
@@ -27,7 +28,8 @@ namespace b2 = box2d;
 std::shared_ptr<Scene> Scenes::physics;
 std::shared_ptr<KaelinsPlayground> Scenes::kaelinsPlayground;
 std::shared_ptr<MenuScene> Scenes::menuScene;
-std::shared_ptr<SettingsScene> Scenes::settingsScene;  
+std::shared_ptr<SettingsScene> Scenes::settingsScene; 
+std::shared_ptr<CreditsScene> Scenes::creditsScene;
 
 //Load the physics scene, which is a scene that has cubes fall from the sky
 void PhysicsScene::load()
