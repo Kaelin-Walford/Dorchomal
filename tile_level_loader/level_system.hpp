@@ -1,4 +1,4 @@
-/*#pragma once
+#pragma once
 
 #include <SFML/Graphics.hpp>
 #include <memory>
@@ -47,4 +47,4 @@ protected:
 private:
 	LevelSystem() = delete;
 	~LevelSystem() = delete;
-};*/
+};

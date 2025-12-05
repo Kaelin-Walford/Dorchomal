@@ -48,6 +48,19 @@ private:
 	const void* fireball_user_data;
 };
 
+class LevelScene : public Scene {
+public:
+	LevelScene() = default;
+	void update(const float& dt) override;
+	void render() override;
+	void load()override;
+	void unload() override;
+private:
+	std::shared_ptr<Entity> _player;
+	std::vector<std::shared_ptr<Entity>> _walls;
+	void _load_level(const std::string& file_path);
+};
+
 class MenuScene;
 
 struct Scenes
@@ -55,4 +68,5 @@ struct Scenes
 	static std::shared_ptr<Scene> physics;
 	static std::shared_ptr<KaelinsPlayground> kaelinsPlayground;
 	static std::shared_ptr<MenuScene> menuScene;
+	static std::shared_ptr<Scene> level;
 };

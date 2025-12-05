@@ -15,12 +15,15 @@
 //remove
 #include "ecm.hpp"
 
+using ls = LevelSystem;
 using param = Parameters;
+using gs = GameSystem;
 namespace b2 = box2d;
 
 std::shared_ptr<Scene> Scenes::physics;
 std::shared_ptr<KaelinsPlayground> Scenes::kaelinsPlayground;
 std::shared_ptr<MenuScene> Scenes::menuScene;
+std::shared_ptr<Scene> Scenes::level;
 
 //Load the physics scene, which is a scene that has cubes fall from the sky
 void PhysicsScene::load()
@@ -417,4 +420,51 @@ void KaelinsPlayground::unload()
 {
 	Scene::unload();
 	_player.reset();
+}
+
+
+void LevelScene::_load_level(const std::string& file_path) {
+	ls::load_level(file_path, param::tile_size);
+
+
+	_player = make_entity();
+	_player->set_position(ls::get_start_position());
+
+	std::shared_ptr<sf::Texture> _playerTexture = std::make_shared<sf::Texture>();
+	if (!_playerTexture->loadFromFile("../../../../resources/textures/practice_sprite_witchgirl.png", sf::IntRect({ 0, 0 }, { 16, 16 }))) {
+		std::cerr << "LOAD PLAYER SPRITE ERROR" << std::endl;
+	}
+
+	std::shared_ptr<SpriteComponent> playerSprite = _player->add_component<SpriteComponent>();
+	playerSprite->set_texure(_playerTexture);
+	playerSprite->get_sprite().setOrigin(sf::Vector2f(8, 8));
+	playerSprite->get_sprite().setScale(sf::Vector2f(param::player_size[0] / 16, param::player_size[1] / 16));
+
+	std::vector<std::vector<sf::Vector2i>> wall_groups = ls::get_groups(ls::WALL);
+	for (const std::vector<sf::Vector2i>& walls : wall_groups) {
+		_walls.push_back(make_entity());
+		_walls.back()->add_component<PlatformComponent>(walls);
+	}
+}
+
+void LevelScene::update(const float& dt) {
+	Scene::update(dt);
+	_entities.update(dt);
+	if (ls::get_tile_at(_player->get_position()) == ls::END) {
+		unload();
+		_load_level(param::level_2);
+	}
+
+}
+
+void LevelScene::render() {
+	ls::render(Renderer::get_window());
+	Scene::render();
+	_entities.render();
+}
+
+void LevelScene::unload() {
+	Scene::unload();
+	_player.reset();
+	_walls.clear();
 }

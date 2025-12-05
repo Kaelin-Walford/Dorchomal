@@ -17,11 +17,14 @@ int main()
 	
 	Scenes::kaelinsPlayground = std::make_shared<KaelinsPlayground>();
 	Scenes::kaelinsPlayground->load();
+
+	Scenes::level = std::make_shared<LevelScene>();
+	Scenes::level->load();
 	
 	Scenes::menuScene = std::make_shared<MenuScene>();
 	Scenes::menuScene->load();
 	
-	GameSystem::set_active_scene(Scenes::menuScene);
+	GameSystem::set_active_scene(Scenes::level);
 	
 	GameSystem::start(param::game_width, param::game_height, "physics", param::time_step, true);
 	
