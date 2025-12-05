@@ -47,14 +47,14 @@ void PlatformComponent::_create_chain_shape(const std::vector<sf::Vector2i>& til
 	for (int i = 0; i < tile_group.size(); i++) {
 		const sf::Vector2i& tile = tile_group[i];
 		std::vector<ls::Tile> neighbors = {
-			ls::in_group({tile.x - 1,tile.y - 1},tile_group) ? ls::get_tile({tile.x - 1,tile.y - 1}) : ls::EMPTY,
-			ls::in_group({tile.x,tile.y - 1},tile_group) ? ls::get_tile({tile.x,tile.y - 1}) : ls::EMPTY,
-			ls::in_group({tile.x + 1,tile.y - 1},tile_group) ? ls::get_tile({tile.x + 1,tile.y - 1}) : ls::EMPTY,
-			ls::in_group({tile.x + 1,tile.y},tile_group) ? ls::get_tile({tile.x + 1,tile.y}) : ls::EMPTY,
-			ls::in_group({tile.x + 1,tile.y + 1},tile_group) ? ls::get_tile({tile.x + 1,tile.y + 1}) : ls::EMPTY,
-			ls::in_group({tile.x,tile.y + 1},tile_group) ? ls::get_tile({tile.x,tile.y + 1}) : ls::EMPTY,
-			ls::in_group({tile.x - 1,tile.y + 1},tile_group) ? ls::get_tile({tile.x - 1,tile.y + 1}) : ls::EMPTY,
-			ls::in_group({tile.x - 1,tile.y},tile_group) ? ls::get_tile({tile.x - 1,tile.y}) : ls::EMPTY
+			ls::in_group({tile.x - 1,tile.y - 1},tile_group) ? ls::get_tile(sf::Vector2i(tile.x - 1,tile.y - 1)) : ls::EMPTY,
+			ls::in_group({tile.x,tile.y - 1},tile_group) ? ls::get_tile(sf::Vector2i(tile.x,tile.y - 1)) : ls::EMPTY,
+			ls::in_group({tile.x + 1,tile.y - 1},tile_group) ? ls::get_tile(sf::Vector2i(tile.x + 1,tile.y - 1)) : ls::EMPTY,
+			ls::in_group({tile.x + 1,tile.y},tile_group) ? ls::get_tile(sf::Vector2i(tile.x + 1,tile.y)) : ls::EMPTY,
+			ls::in_group({tile.x + 1,tile.y + 1},tile_group) ? ls::get_tile(sf::Vector2i(tile.x + 1,tile.y + 1)) : ls::EMPTY,
+			ls::in_group({tile.x,tile.y + 1},tile_group) ? ls::get_tile(sf::Vector2i(tile.x,tile.y + 1)) : ls::EMPTY,
+			ls::in_group({tile.x - 1,tile.y + 1},tile_group) ? ls::get_tile(sf::Vector2i(tile.x - 1,tile.y + 1)) : ls::EMPTY,
+			ls::in_group({tile.x - 1,tile.y},tile_group) ? ls::get_tile(sf::Vector2i(tile.x - 1,tile.y)) : ls::EMPTY
 		};
 		sf::Vector2f pos = ls::get_tile_position(tile);
 

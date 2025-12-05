@@ -423,6 +423,10 @@ void KaelinsPlayground::unload()
 }
 
 
+void LevelScene::load() {
+	_load_level(param::level_2);
+}
+
 void LevelScene::_load_level(const std::string& file_path) {
 	ls::load_level(file_path, param::tile_size);
 
@@ -439,6 +443,15 @@ void LevelScene::_load_level(const std::string& file_path) {
 	playerSprite->set_texure(_playerTexture);
 	playerSprite->get_sprite().setOrigin(sf::Vector2f(8, 8));
 	playerSprite->get_sprite().setScale(sf::Vector2f(param::player_size[0] / 16, param::player_size[1] / 16));
+
+	// Add PlayerPhysicsComponent so player can collide with terrain
+	std::shared_ptr<PlayerPhysicsComponent> playerPhysics = _player->add_component<PlayerPhysicsComponent>(sf::Vector2f(param::player_size[0], param::player_size[1]));
+	playerPhysics->create_capsule_shape(sf::Vector2f(param::player_size[0], param::player_size[1]), 
+	                                     param::player_weight, 
+	                                     param::player_friction, 
+	                                     param::player_restitution, 
+	                                     -1, 
+	                                     "Player");
 
 	std::vector<std::vector<sf::Vector2i>> wall_groups = ls::get_groups(ls::WALL);
 	for (const std::vector<sf::Vector2i>& walls : wall_groups) {
