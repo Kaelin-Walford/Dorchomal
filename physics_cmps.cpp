@@ -151,8 +151,10 @@ PhysicsComponent::PhysicsComponent(Entity* p, bool dyn) : Component(p), _dynamic
 
 	_can_use_fireball = true;
 	_can_attack = true;
-	_attacking = false;
-	_in_range_of_target = false;
+	attacking = false;
+	_has_attacked = false;
+	in_range_of_target = false;
+	_shape_destroyed = false;
 
 	//Sounds
 	_attack_sound.add_sound("Slash.wav");
@@ -233,8 +235,16 @@ const b2ShapeId& PhysicsComponent::get_shape_id() const { return _shape_id; }
 //The physics component destructor
 PhysicsComponent::~PhysicsComponent()
 {
-	b2DestroyShape(_shape_id, true);
-	_shape_id = b2_nullShapeId;
+	if(!_shape_destroyed && b2Shape_IsValid(_attack_hitbox_shape_id))
+	{
+		b2DestroyShape(_attack_hitbox_shape_id, true);
+		_attack_hitbox_shape_id = b2_nullShapeId;
+	}
+	if(b2Shape_IsValid(_shape_id))
+	{
+		b2DestroyShape(_shape_id, true);
+		_shape_id = b2_nullShapeId;
+	}
 	b2DestroyBody(_body_id);
 	_body_id = b2_nullBodyId;
 }
@@ -333,12 +343,15 @@ void PhysicsComponent::create_attack_hitbox(const sf::Vector2f& size)
 
 	shape_def.userData = "Melee";
 	shape_def.enableSensorEvents = true;
+	//shape_def.posit
 
 	//sets it to be a sensor so it only detects other objects entering it with no collisions
 	shape_def.isSensor = true;
 
+	//b2Vec2 b2_offset = { ph::sv2_to_bv2(offset).x, ph::sv2_to_bv2(offset).y};
+
 	b2Polygon polygon = b2MakeBox(ph::sv2_to_bv2(size).x * 2, ph::sv2_to_bv2(size).y * 0.5);
-	_shape_id = b2CreatePolygonShape(_body_id, &shape_def, &polygon);
+	_attack_hitbox_shape_id = b2CreatePolygonShape(_body_id, &shape_def, &polygon);
 }
 
 //Function to create an entity
@@ -361,70 +374,8 @@ const void* PhysicsComponent::get_shape_user_data() const
 	return b2Shape_GetUserData(_shape_id);
 }
 
-//Effect and GetComponent properties
-//reduce the components health dy damage
-void PhysicsComponent::reduce_health(int damage)
-{
-	_health -= damage;
-}
-
-/*
-void PhysicsComponent::destroy_body()
-{
-	//if (b2Body_IsValid(_body_id))
-	//{
-	b2DestroyShape(_shape_id, true);
-	_shape_id = b2_nullShapeId;
-	//b2DestroyShape(_attack_hitbox_shape_id, true);
-		//_attack_hitbox_shape_id = b2_nullShapeId;
-
-		b2DestroyBody(_body_id);
-		_body_id = b2_nullBodyId;
-	//}
-}*/
-
-/*
-*	Player Physics Component
-*/
-
-PlayerPhysicsComponent::PlayerPhysicsComponent(Entity* p, const sf::Vector2f& size) : PhysicsComponent(p, true)
-{
-	_size = ph::sv2_to_bv2(size);
-	_max_velocity = sf::Vector2f(param::player_max_vel[0], param::player_max_vel[1]);
-	_ground_speed = param::player_impulse;
-	_grounded = false;
-	_can_dash = true;
-	_is_dashing = false;
-	_facing_right = true;
-	_dash_current_duration = 0.f;
-	_fireball_wait_timer = 0.0f;
-	_health = param::player_max_health;
-	_previous_health = _health;
-
-	//Sounds
-	_dash_sound.add_sound("dash.wav");
-
-	//define the fireball target shape
-	_target = make_entity();
-	_target->set_position(sf::Vector2f(0, 0));
-	_target->set_visible(false);
-
-	std::shared_ptr<ShapeComponent> shape = _target->add_component<ShapeComponent>();
-	shape->set_shape<sf::RectangleShape>(sf::Vector2f(param::fireball_target_size[0], param::fireball_target_size[1]));
-	shape->get_shape().setFillColor(sf::Color::Magenta);
-
-	//Prevents the player from rotating and sleeping
-	b2Body_EnableSleep(_body_id, false);
-	b2Body_SetFixedRotation(_body_id, true);
-	b2Body_SetUserData(_body_id, "Player");
-
-	create_attack_hitbox(sf::Vector2f(param::player_size[0], param::player_size[1]));
-	//Bullet items have higher-res collision detection
-	// b2Body_SetBullet(_body_id,true);
-}
-
 //This checks if the collision normal is pointing upward, which means the player is on the ground
-bool PlayerPhysicsComponent::is_grounded() const
+bool PhysicsComponent::is_grounded() const
 {
 	std::array<b2ContactData, 10> contacts;
 	int count = get_contacts(contacts);
@@ -445,16 +396,131 @@ bool PlayerPhysicsComponent::is_grounded() const
 	return false;
 }
 
+//Effect and GetComponent properties
+//reduce the components health dy damage
+void PhysicsComponent::reduce_health(int damage)
+{
+	_health -= damage;
+}
+
+//Attacks
+//Attack Timer
+void PhysicsComponent::attack_timer(const float& dt)
+{
+	if (!_can_attack)
+	{
+		//Duration till entity can attack again
+		_attack_wait_timer += dt;
+		if (_attack_wait_timer >= _attack_cooldown)
+		{
+			_can_attack = true;
+			_attack_wait_timer = 0;
+		}
+
+		//When the enemy has finished attacking
+		else if (_attack_wait_timer >= _attack_duration)
+		{
+			attacking = false;
+			_has_attacked = false;
+		}
+
+		//When the entity can start to attack
+		else if (_attack_wait_timer >= _time_to_start_attack)
+		{
+			if (!_has_attacked)
+			{
+				attacking = true;
+				_has_attacked = true;
+			}
+		}
+	}
+}
+
+//create fireball
+void PhysicsComponent::fireball(sf::Vector2f velocity, float rotation, sf::Vector2f position)
+{
+	//create the fireball
+	std::shared_ptr<Entity> fireball;
+
+	fireball = make_entity();
+	fireball->set_position(sf::Vector2f(position.x, position.y - 1));
+	fireball->set_visible(true);
+
+	std::shared_ptr<ShapeComponent> shape = fireball->add_component<ShapeComponent>();
+	shape->set_shape<sf::RectangleShape>(sf::Vector2f(param::player_size[0], param::player_size[1]));
+	shape->get_shape().setFillColor(sf::Color::Red);
+	shape->get_shape().setOrigin(sf::Vector2f(param::player_size[0] / 2.f, param::player_size[1] / 2.f));
+
+	std::shared_ptr<FireballComponent> fireball_component = fireball->add_component<FireballComponent>(sf::Vector2f(position.x, position.y - 1), velocity, rotation);
+	fireball_component->create_capsule_shape(sf::Vector2f(param::player_size[0], param::player_size[1]), b2Shape_GetFilter(_shape_id).groupIndex);
+
+	_can_use_fireball = false;
+}
+
+//Knockback the entity
+void PhysicsComponent::knockback_entity(float dt)
+{
+	//runs while being knockedback
+	_knockback_duration += dt;
+	if (_knockback_duration >= param::knockmack_duration)
+	{
+		knockback = false;
+		_knockback_duration = 0;
+		set_velocity(sf::Vector2f(0, 0));
+		set_gravity_scale(1);
+	}
+}
+
+/*
+*	Player Physics Component
+*/
+
+PlayerPhysicsComponent::PlayerPhysicsComponent(Entity* p, const sf::Vector2f& size) : PhysicsComponent(p, true)
+{
+	_size = ph::sv2_to_bv2(size);
+	_max_velocity = sf::Vector2f(param::player_max_vel[0], param::player_max_vel[1]);
+	_ground_speed = param::player_impulse;
+	_grounded = false;
+	_can_dash = true;
+	_is_dashing = false;
+	knockback = false;
+	facing_right = true;
+	_dash_current_duration = 0.f;
+	_fireball_wait_timer = 0.0f;
+	_health = param::health;
+	_just_dashed = false;
+	_knockback_duration = 0;
+
+	_attack_cooldown = param::attack_cooldown;
+	_attack_duration = param::attack_duration;
+	_time_to_start_attack = param::time_to_start_attack;
+
+	//Sounds
+	_dash_sound.add_sound("dash.wav");
+
+	//define the fireball target shape
+	_target = make_entity();
+	_target->set_position(sf::Vector2f(0, 0));
+	_target->set_visible(false);
+
+	std::shared_ptr<ShapeComponent> shape = _target->add_component<ShapeComponent>();
+	shape->set_shape<sf::RectangleShape>(sf::Vector2f(param::fireball_target_size[0], param::fireball_target_size[1]));
+	shape->get_shape().setFillColor(sf::Color::Magenta);
+
+	//Prevents the player from rotating and sleeping
+	b2Body_EnableSleep(_body_id, false);
+	b2Body_SetFixedRotation(_body_id, true);
+	b2Body_SetUserData(_body_id, "Player");
+
+	create_attack_hitbox(sf::Vector2f(param::player_size[0], param::player_size[1]));
+
+	//_attack_hitbox_left_shape_id b2shapedisa
+	//Bullet items have higher-res collision detection
+	// b2Body_SetBullet(_body_id,true);
+}
 
 void PlayerPhysicsComponent::update(const float& dt)
 {
-	//If the players health has reduced
-	if (_health < _previous_health)
-	{
-		teleport(sf::Vector2f(300, 300));
-		_previous_health = _health;
-	}
-
 	const sf::Vector2f pos = _parent->get_position();
 	b2Vec2 b2_pos = ph::sv2_to_bv2(ph::invert_height(pos, param::game_height));
 
@@ -480,42 +546,52 @@ void PlayerPhysicsComponent::update(const float& dt)
 		}
 	}
 
+
 	//Attack Timer
-	if (!_can_attack)
-	{
-		_attack_wait_timer += dt;
-		if (_attack_wait_timer >= param::attack_cooldown)
-		{
-			_can_attack = true;
-			_attack_wait_timer = 0;
-		}
-		else if (_attack_wait_timer >= param::attack_duration)
-		{
-			_attacking = false;
-		}
-		else if (_attack_wait_timer >= param::time_to_start_attack)
-		{
-			_attacking = true;
-		}
-	}
+	attack_timer(dt);
 
 	//check to only allow player movement while they are not dashing
-	if (!_is_dashing)
+	if (!_is_dashing && !knockback)
 	{
+		//Are we in air?
+		if (!_grounded)
+		{
+			// disable friction while jumping
+			set_friction(0.f);
+		}
+		else
+		{
+			set_friction(param::player_friction);
+			//Allows the player to dash again
+			_can_dash = true;
+		}
+
 		//Handles left and right movement
 		if (sf::Keyboard::isKeyPressed(param::move_left) || sf::Keyboard::isKeyPressed(param::move_right))
 		{
+			if (get_gravity_scale() == 0)
+			{
+				set_gravity_scale(1);
+			}
 			// Moving Either Left or Right
 			if (sf::Keyboard::isKeyPressed(param::move_right))
 			{
 				set_velocity(sf::Vector2f(_ground_speed, get_velocity().y));
-				_facing_right = true;
+				if (!facing_right)
+				{
+					facing_right = true;
+				}
+
 			}
 			else
 			{
 				set_velocity(sf::Vector2f(-_ground_speed, get_velocity().y));
-				_facing_right = false;
+				if (facing_right)
+				{
+					facing_right = false;
+				}
 			}
+			_just_dashed = false;
 			//If on the ground and not playing a sound then play walk sound
 			if (_grounded)
 			{
@@ -525,10 +601,35 @@ void PlayerPhysicsComponent::update(const float& dt)
 				}
 			}
 		}
-		else
+		else if (!_just_dashed)
 		{
 			//Stop moving the player left or right when there is to imput pressed
 			set_velocity(sf::Vector2f(0, get_velocity().y));
+		}
+		//If the player has dashed or been knocked back and haven't done any movement they won't be brought to an abrupt stop
+		else
+		{
+			if (get_velocity().x > 0)
+			{
+				set_velocity(sf::Vector2f(get_velocity().x - 100, get_velocity().y - 100));
+				if (get_velocity().x <= 0)
+				{
+					set_velocity(sf::Vector2f(0, 0));
+					_just_dashed = false;
+					set_gravity_scale(1);
+				}
+
+			}
+			else
+			{
+				set_velocity(sf::Vector2f(get_velocity().x + 100, get_velocity().y + 100));
+				if (get_velocity().x >= 0)
+				{
+					set_velocity(sf::Vector2f(0, 0));
+					_just_dashed = false;
+					set_gravity_scale(1);
+				}
+			}
 		}
 
 		// Clamp velocity.
@@ -585,7 +686,7 @@ void PlayerPhysicsComponent::update(const float& dt)
 				else
 				{
 					//if statment to get velocity to apply in the direction the player is facing
-					float dash_speed = _facing_right ? param::dash_speed : -param::dash_speed;
+					float dash_speed = facing_right ? param::dash_speed : -param::dash_speed;
 					set_velocity(sf::Vector2f(dash_speed, get_velocity().y));
 				}
 
@@ -600,9 +701,8 @@ void PlayerPhysicsComponent::update(const float& dt)
 		{
 			if (_grounded)
 			{
-				set_velocity(sf::Vector2f(get_velocity().x, 0.f));
+				set_velocity(sf::Vector2f(get_velocity().x, param::player_jump));
 				teleport(sf::Vector2f(pos.x, pos.y - 2.0f));
-				impulse(sf::Vector2f(0, -param::player_jump));
 			}
 		}
 
@@ -618,23 +718,9 @@ void PlayerPhysicsComponent::update(const float& dt)
 				_fireball_sound.play_sound();
 
 				//get the velocity for the fireball
-				sf::Vector2f velocity = fireball(_target->get_position(), pos);
+				auto [velocity, rotation] = fireball_direction(_target->get_position(), pos);
 
-				//create the fireball
-				std::shared_ptr<Entity> fireball;
-
-				fireball = make_entity();
-				fireball->set_position(sf::Vector2f(pos.x, pos.y - 1));
-				fireball->set_visible(true);
-
-				std::shared_ptr<ShapeComponent> shape = fireball->add_component<ShapeComponent>();
-				shape->set_shape<sf::RectangleShape>(sf::Vector2f(param::player_size[0], param::player_size[1]));
-				shape->get_shape().setFillColor(sf::Color::Blue);
-
-				std::shared_ptr<FireballComponent> fireball_component = fireball->add_component<FireballComponent>(sf::Vector2f(pos.x, pos.y - 1), velocity);
-				fireball_component->create_capsule_shape(sf::Vector2f(param::player_size[0], param::player_size[1]));
-
-				_can_use_fireball = false;
+				fireball(velocity, rotation, pos);
 			}
 		}
 		else
@@ -651,10 +737,8 @@ void PlayerPhysicsComponent::update(const float& dt)
 				_can_attack = false;
 			}
 		}
-
-
 	}
-	else
+	else if (_is_dashing)
 	{
 		//Runs while dashing
 		_dash_current_duration += dt;
@@ -662,24 +746,15 @@ void PlayerPhysicsComponent::update(const float& dt)
 		{
 			_is_dashing = false;
 			_dash_current_duration = 0.f;
-			set_gravity_scale(1.f);
+			set_velocity(sf::Vector2f(0, 30));
+			set_gravity_scale(1);
 		}
-	}
-
-	//Are we in air?
-	if (!_grounded)
-	{
-		// Check to see if we have landed yet
-		_grounded = is_grounded();
-		// disable friction while jumping
-		set_friction(0.f);
 	}
 	else
 	{
-		set_friction(param::player_friction);
-		//Allows the player to dash again
-		_can_dash = true;
+		knockback_entity(dt);
 	}
+
 
 	//Delete fireballs
 	for (auto& entity : get_entities())
@@ -715,7 +790,7 @@ void PlayerPhysicsComponent::dash(bool rightSide, bool topSide)
 }
 
 //Function for the player to cast a fireball
-sf::Vector2f PlayerPhysicsComponent::fireball(sf::Vector2f target_position, sf::Vector2f player_position)
+std::tuple<sf::Vector2f, float> PlayerPhysicsComponent::fireball_direction(sf::Vector2f target_position, sf::Vector2f player_position)
 {
 	//Player position
 	float a = player_position.x;
@@ -730,7 +805,6 @@ sf::Vector2f PlayerPhysicsComponent::fireball(sf::Vector2f target_position, sf::
 
 	//gets the angle to send the fireball towards - by using SohCahToa
 	float angle = atan((b - y) / (x - a));
-
 
 	if (angle < 0)
 	{
@@ -749,27 +823,76 @@ sf::Vector2f PlayerPhysicsComponent::fireball(sf::Vector2f target_position, sf::
 	{
 		velocityX = -velocityX;
 	}
-	return sf::Vector2f(velocityX, velocityY);
+
+	//rotaion for the fireball
+	float fireball_rotation = (M_PI / 2) - angle;
+	if (by < 0 && xa < 0)
+	{
+		fireball_rotation += M_PI;
+	}
+	else if (by < 0)
+	{
+		fireball_rotation += M_PI;
+		fireball_rotation = -fireball_rotation;
+
+	}
+	else if (xa < 0)
+	{
+		fireball_rotation = -fireball_rotation;
+	}
+
+	return { sf::Vector2f(velocityX, velocityY), fireball_rotation };
 }
 
 /*
 *	Enemy Attack Physics Component
 */
 
-EnemyAttackComponent::EnemyAttackComponent(Entity* p, const sf::Vector2f& size) : PhysicsComponent(p, true)
+EnemyAttackComponent::EnemyAttackComponent(Entity* p, Entity* player, const sf::Vector2f& size, int type) : PhysicsComponent(p, true)
 {
 	_size = ph::sv2_to_bv2(size);
-	_health = param::enemy_health; // Use parameter for health
-	_previous_health = _health;
-	player_in_range = false;
 
-	// Initialize attack variables
-	_can_attack = true;
-	_attack_wait_timer = 0.f;
-	_is_attacking = false;
-	_attack_startup_timer = 0.f;
-	_has_dealt_damage = false;
-	_player = nullptr;
+	player_in_range = false;
+	in_range_of_player = false;
+	_player = player;
+	attacking = false;
+	_attack_cooldown = param::enemy_attack_cooldown;
+	_attack_duration = param::enemy_attack_duration;
+	_time_to_start_attack = param::enemy_time_to_start_attack;
+	_fireball_wait_timer = 0;
+	facing_right = false;
+	knockback = false;
+	_knockback_duration = 0;
+	_can_move = true;
+	defeated = false;
+
+	//1 - enemy without attacks - 2 melee attacks enemy - 3 fireball attack enemy
+	_enemy_type = type;
+
+	if (_enemy_type == 1)
+	{
+		_health = 1;
+		_default_colour = sf::Color::Cyan;
+		_chasing_colour = sf::Color(0, 150, 255);
+	}
+	else if (_enemy_type == 2)
+	{
+		_health = 3;
+
+		create_attack_hitbox(sf::Vector2f(param::player_size[0], param::player_size[1]));
+		_default_colour = sf::Color(255, 105, 180);
+		_chasing_colour = sf::Color(255, 182, 193);
+	}
+	else
+	{
+		_health = 2;
+		_default_colour = sf::Color::Green;
+		_chasing_colour = sf::Color(0, 255, 150);
+	}
+
+	//set enemy colour
+	auto shape_components = _parent->get_components<ShapeComponent>();
+	shape_components[0]->get_shape().setFillColor(_default_colour);
 
 	// Initialize sleep system
 	_is_asleep = false;
@@ -797,14 +920,216 @@ EnemyAttackComponent::EnemyAttackComponent(Entity* p, const sf::Vector2f& size) 
 	b2Body_EnableSleep(_body_id, false);
 	b2Body_SetFixedRotation(_body_id, true);
 	b2Body_SetUserData(_body_id, "Enemy");
-
-	//_shape_id_inde = _shape_id.index1;
 }
 
-// Set the player entity reference
-void EnemyAttackComponent::set_player_entity(std::shared_ptr<Entity> player)
+void EnemyAttackComponent::update(const float& dt)
 {
-	_player = player;
+	const sf::Vector2f pos = _parent->get_position();
+	b2Vec2 b2_pos = ph::sv2_to_bv2(ph::invert_height(pos, param::game_height));
+
+	if (!knockback)
+	{
+		if(!_is_asleep)
+		{
+			if (_enemy_type == 2)
+			{
+				attack_timer(dt);
+
+				//if the enemy is in range of the player to start attacking them
+				if (x_distance(param::enemy_attack_start_range) && in_range_of_player)
+				{
+					//Stop moving
+					set_velocity(sf::Vector2f(0.f, get_velocity().y));
+
+					bool facing_player = false;
+					if ((_player->get_position().x < get_position().x) && !facing_right)
+					{
+						facing_player = true;
+					}
+					if ((_player->get_position().x > get_position().x) && facing_right)
+					{
+						facing_player = true;
+					}
+					if (facing_player)
+					{
+						if (_can_attack)
+						{
+							_attack_wait_timer = 0.f;
+							_can_attack = false;
+						}
+					}
+				}
+			}
+
+			if (_enemy_type == 3)
+			{
+				//Fireball timer
+				if (!_can_use_fireball)
+				{
+					_fireball_wait_timer += dt;
+					if (_fireball_wait_timer >= param::fireball_cooldown)
+					{
+						_fireball_wait_timer = 0;
+						_can_use_fireball = true;
+					}
+				}
+				else
+				{
+					int velocity = param::fireball_velocity;
+					if (_player->get_position().x < get_position().x)
+					{
+						velocity = -velocity;
+						fireball(sf::Vector2f(velocity, 0), (3 * M_PI / 2), pos);
+					}
+					else
+					{
+						fireball(sf::Vector2f(velocity, 0), (M_PI / 2), pos);
+					}
+				}
+
+				//Delete fireballs
+				for each(std::shared_ptr<Entity> entity in get_entities())
+				{
+					auto components = entity->get_components<FireballComponent>();
+					for each(std::shared_ptr<FireballComponent> component in components)
+					{
+						if (component->is_for_deletion())
+						{
+							entity->set_for_delete();
+						}
+					}
+				}
+
+				//if the enemy is within stopping range
+				if (get_distance_to_player() <= param::fireball_enemy_stopping_range)
+				{
+					_can_move = false;
+				}
+				else
+				{
+					_can_move = true;
+				}
+			}
+		}
+	}
+	// If enemy is asleep
+	if (_is_asleep)
+	{
+		_sleep_timer += dt;
+
+		// Update ZZZ text position
+		if (_font_loaded)
+		{
+			sf::Vector2f enemy_pos = _parent->get_position();
+			_zzz_text.setPosition(enemy_pos.x + param::zzz_offset_x,
+				enemy_pos.y + param::zzz_offset_y);
+
+			// Animate ZZZ (bob up and down slightly)
+			float bob = sin(_sleep_timer * 2.0f) * 3.0f;
+			_zzz_text.move(0.f, bob * dt);
+		}
+
+		// Gradually fade out after sleep_fade_time
+		if (_sleep_timer > param::sleep_fade_time)
+		{
+			auto shape_components = _parent->get_components<ShapeComponent>();
+			if (!shape_components.empty())
+			{
+				sf::Color current = shape_components[0]->get_shape().getFillColor();
+				int alpha = std::max(0, static_cast<int>(current.a - 100 * dt));
+				current.a = alpha;
+				shape_components[0]->get_shape().setFillColor(current);
+
+				// Also fade ZZZ text
+				if (_font_loaded)
+				{
+					sf::Color text_color = _zzz_text.getFillColor();
+					text_color.a = alpha;
+					_zzz_text.setFillColor(text_color);
+				}
+
+				// Mark for deletion when fully faded
+				if (alpha <= 0)
+				{
+					defeated = true;
+				}
+			}
+		}
+
+		if (knockback)
+		{
+			//runs while being knockedback
+			_knockback_duration += dt;
+			if (_knockback_duration >= param::knockmack_duration)
+			{
+				knockback = false;
+				_knockback_duration = 0;
+				set_velocity(sf::Vector2f(0, 0));
+				set_gravity_scale(1);
+			}
+		}
+
+		PhysicsComponent::update(dt);
+		return; // Don't do any other behavior while asleep
+	}
+	else if(!knockback)
+	{
+
+		// Handle being put to sleep (health reaches 0)
+		if (_health <= 0)
+		{
+			put_to_sleep();
+			return;
+		}
+
+		const sf::Vector2f pos = _parent->get_position();
+
+		// Check if player exists
+		if (_player)
+		{
+			float distance = get_distance_to_player();
+
+			// Visual feedback - change color based on state
+			auto shape_components = _parent->get_components<ShapeComponent>();
+			if (!shape_components.empty())
+			{
+				if (!_can_attack)
+				{
+					shape_components[0]->get_shape().setFillColor(sf::Color(255, 20, 147)); // Light red when attacking
+				}
+				else if (distance <= param::enemy_detection_range)
+				{
+					shape_components[0]->get_shape().setFillColor(_chasing_colour); // Orange when chasing
+				}
+				else
+				{
+					shape_components[0]->get_shape().setFillColor(_default_colour); // Normal red when idle
+				}
+			}
+
+			// State machine
+			if ((distance <= param::enemy_detection_range) && (_can_move == true))
+			{
+				// CHASE STATE
+				if (_can_attack)
+				{
+					move_toward_player(dt);
+				}
+			}
+			else
+			{
+				// IDLE STATE
+				// Stop moving
+				set_velocity(sf::Vector2f(0.f, get_velocity().y));
+			}
+		}
+
+		PhysicsComponent::update(dt);
+	}
+	else
+	{
+		knockback_entity(dt);
+	}
 }
 
 // Calculate distance to player
@@ -845,61 +1170,7 @@ void EnemyAttackComponent::move_toward_player(const float& dt)
 		// Only move horizontally, let gravity handle vertical
 		sf::Vector2f current_vel = get_velocity();
 		set_velocity(sf::Vector2f(dx * param::enemy_move_speed, current_vel.y));
-	}
-}
-
-// Handle attack logic
-void EnemyAttackComponent::perform_attack(const float& dt)
-{
-	if (!_can_attack)
-	{
-		_attack_wait_timer += dt;
-
-		// During startup phase
-		if (_is_attacking && _attack_startup_timer < param::enemy_attack_startup)
-		{
-			_attack_startup_timer += dt;
-
-			// Deal damage after startup
-			if (_attack_startup_timer >= param::enemy_attack_startup && !_has_dealt_damage)
-			{
-				// Check if still in range
-				if (player_in_range && _player)
-				{
-					// Deal damage to player
-					auto player_components = _player->get_components<PlayerPhysicsComponent>();
-					if (!player_components.empty())
-					{
-						player_components[0]->reduce_health(param::enemy_attack_damage);
-					}
-					_has_dealt_damage = true;
-				}
-			}
-		}
-
-		// End attack animation
-		if (_is_attacking && _attack_startup_timer >= param::enemy_attack_duration)
-		{
-			_is_attacking = false;
-			_attack_startup_timer = 0.f;
-		}
-
-		// Reset cooldown
-		if (_attack_wait_timer >= param::enemy_attack_cooldown)
-		{
-			_can_attack = true;
-			_attack_wait_timer = 0.f;
-			_has_dealt_damage = false;
-		}
-	}
-	else if (player_in_range)
-	{
-		// Start new attack
-		_can_attack = false;
-		_is_attacking = true;
-		_attack_wait_timer = 0.f;
-		_attack_startup_timer = 0.f;
-		_has_dealt_damage = false;
+		is_moving = true;
 	}
 }
 
@@ -921,126 +1192,31 @@ void EnemyAttackComponent::put_to_sleep()
 		{
 			shape_components[0]->get_shape().setFillColor(sf::Color(100, 100, 255, 200)); // Light blue, semi-transparent
 		}
+		//destroy main shape
+		b2Body_Disable(_body_id);
 	}
 }
 
-void EnemyAttackComponent::update(const float& dt)
+
+
+//Returns true if  the distance between this enemy and the player only based on the x axis is less than or equal to the provided distance
+bool EnemyAttackComponent::x_distance(int distance)
 {
-	// If enemy is asleep
-	if (_is_asleep)
+	int x_distance = get_position().x - _player->get_components<PlayerPhysicsComponent>()[0]->get_position().x - param::player_size[0];
+	if (x_distance < 0)
 	{
-		_sleep_timer += dt;
-
-		// Update ZZZ text position
-		if (_font_loaded)
-		{
-			sf::Vector2f enemy_pos = _parent->get_position();
-			_zzz_text.setPosition(enemy_pos.x + param::zzz_offset_x,
-				enemy_pos.y + param::zzz_offset_y);
-
-			// Animate ZZZ (bob up and down slightly)
-			float bob = sin(_sleep_timer * 2.0f) * 3.0f;
-			_zzz_text.move(0.f, bob * dt);
-		}
-
-		// Gradually fade out after sleep_fade_time
-		if (_sleep_timer > param::sleep_fade_time)
-		{
-			auto shape_components = _parent->get_components<ShapeComponent>();
-			if (!shape_components.empty())
-			{
-				sf::Color current = shape_components[0]->get_shape().getFillColor();
-				int alpha = std::max(0, static_cast<int>(current.a - 100 * dt));
-				current.a = alpha;
-				shape_components[0]->get_shape().setFillColor(current);
-
-				// Also fade ZZZ text
-				if (_font_loaded)
-				{
-					sf::Color text_color = _zzz_text.getFillColor();
-					text_color.a = alpha;
-					_zzz_text.setFillColor(text_color);
-				}
-
-				// Mark for deletion when fully faded
-				if (alpha <= 0)
-				{
-					_parent->set_for_delete();
-				}
-			}
-		}
-
-		PhysicsComponent::update(dt);
-		return; // Don't do any other behavior while asleep
+		x_distance = !x_distance;
 	}
-
-	// Handle being put to sleep (health reaches 0)
-	if (_health <= 0)
+	if (x_distance <= distance)
 	{
-		put_to_sleep();
-		return;
+		return true;
 	}
-
-	// Update health tracking
-	if (_health < _previous_health)
+	else
 	{
-		_previous_health = _health;
-		// Could add hit reaction here (flash, shake, etc.)
+		return false;
 	}
-
-	const sf::Vector2f pos = _parent->get_position();
-
-	// Check if player exists
-	if (_player)
-	{
-		float distance = get_distance_to_player();
-
-		// Visual feedback - change color based on state
-		auto shape_components = _parent->get_components<ShapeComponent>();
-		if (!shape_components.empty())
-		{
-			if (_is_attacking)
-			{
-				shape_components[0]->get_shape().setFillColor(sf::Color(255, 100, 100)); // Light red when attacking
-			}
-			else if (distance <= param::enemy_detection_range)
-			{
-				shape_components[0]->get_shape().setFillColor(sf::Color(255, 150, 0)); // Orange when chasing
-			}
-			else
-			{
-				shape_components[0]->get_shape().setFillColor(sf::Color::Red); // Normal red when idle
-			}
-		}
-
-		// State machine
-		if (distance <= param::enemy_attack_range)
-		{
-			// ATTACK STATE
-			// Stop moving
-			set_velocity(sf::Vector2f(0.f, get_velocity().y));
-
-			// Handle attack logic
-			perform_attack(dt);
-		}
-		else if (distance <= param::enemy_detection_range)
-		{
-			// CHASE STATE
-			if (!_is_attacking)
-			{
-				move_toward_player(dt);
-			}
-		}
-		else
-		{
-			// IDLE STATE
-			// Stop moving
-			set_velocity(sf::Vector2f(0.f, get_velocity().y));
-		}
-	}
-
-	PhysicsComponent::update(dt);
 }
+	
 
 // Render the ZZZ text if asleep
 void EnemyAttackComponent::render()
@@ -1057,7 +1233,7 @@ void EnemyAttackComponent::render()
 *	Fireball Physics Component
 */
 
-FireballComponent::FireballComponent(Entity* p, sf::Vector2f position, sf::Vector2f velocity) : Component(p)
+FireballComponent::FireballComponent(Entity* p, sf::Vector2f position, sf::Vector2f velocity, float angle) : Component(p)
 {
 	b2BodyDef body_def = b2DefaultBodyDef();
 	//Is Dynamic(moving), or static(Stationary) - the ? is a short-hand if else statement where it returns the first value if true and second if false
@@ -1065,6 +1241,7 @@ FireballComponent::FireballComponent(Entity* p, sf::Vector2f position, sf::Vecto
 	body_def.type = b2_dynamicBody;
 	body_def.position = ph::sv2_to_bv2(ph::invert_height(_parent->get_position(), param::game_height));
 	body_def.userData = "Fireball";
+	body_def.rotation = b2MakeRot(angle);
 
 	//Create the body
 	_body_id = b2CreateBody(ph::get_world_id(), &body_def);
@@ -1102,11 +1279,11 @@ int FireballComponent::get_contacts(std::array<b2ContactData, 10>& contacts) con
 }
 
 //Function to create a box shape
-void FireballComponent::create_box_shape(const sf::Vector2f& size)
+void FireballComponent::create_box_shape(const sf::Vector2f& size, int filter_group)
 {
 	//Create the fixture shape
 	b2ShapeDef shape_def = b2DefaultShapeDef();
-	shape_def.filter.groupIndex = -1;
+	shape_def.filter.groupIndex = filter_group;
 	shape_def.enableContactEvents;
 	shape_def.userData = "Fireball";
 	b2Polygon polygon = b2MakeBox(ph::sv2_to_bv2(size).x * 0.5f, ph::sv2_to_bv2(size).y * 0.5f);
@@ -1114,11 +1291,11 @@ void FireballComponent::create_box_shape(const sf::Vector2f& size)
 }
 
 //function to create a capsule shape
-void FireballComponent::create_capsule_shape(const sf::Vector2f& size)
+void FireballComponent::create_capsule_shape(const sf::Vector2f& size, int filter_group)
 {
 	//Create the fixture shape
 	b2ShapeDef shape_def = b2DefaultShapeDef();
-	shape_def.filter.groupIndex = -1;
+	shape_def.filter.groupIndex = filter_group;
 	shape_def.enableContactEvents;
 	shape_def.userData = "Fireball";
 	b2Vec2 b2_size = ph::sv2_to_bv2(size);

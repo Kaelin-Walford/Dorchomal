@@ -48,6 +48,7 @@ add_executable(dorchomal
     UI/ui_slider.cpp
     UI/ui_toggle.cpp
     UI/settings_scene.cpp
+    UI/credits_scene.cpp
 )
 target_include_directories(dorchomal PRIVATE ${SFML_INCS} ${B2D_INCS} tile_level_loader engine)
 target_link_libraries(dorchomal sfml-graphics sfml-audio sfml-system box2d tile_level engine)

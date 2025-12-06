@@ -49,6 +49,7 @@ public:
 	void create_box_shape(const sf::Vector2f& size, float mass, float friction, float restitution, int filter, char* userdata);
 	void create_capsule_shape(const sf::Vector2f& size, float mass, float friction, float restitution, int filter, char* userdata);
 	void create_attack_hitbox(const sf::Vector2f& size);
+	bool is_grounded() const;
 
 	//entity functions
 	const std::shared_ptr<Entity>& make_entity();
@@ -62,31 +63,45 @@ public:
 	void reduce_health(int damage);
 	int get_health() { return _health; }
 
-	//Function to destroy the body
-	//void destroy_body();
+	//attacks
+	void attack_timer(const float& dt);
+	void fireball(sf::Vector2f velocity, float rotation, sf::Vector2f position);
+	void knockback_entity(float dt);
 
 	//Allows the scene to know when the entity is attacking
-	bool _attacking;
-	bool _in_range_of_target;
+	bool attacking;
+	bool in_range_of_target;
+
+	bool facing_right;
+
+	bool knockback;
 
 	~PhysicsComponent() override;
 protected:
 	b2BodyId _body_id;
 	b2ShapeId _shape_id;
 	b2ShapeId _attack_hitbox_shape_id;
+	bool _shape_destroyed;
+	//b2ShapeId _attack_hitbox_left_shape_id;
 	const bool _dynamic;
 	float _friction;
 	float _restitution;
 	float _mass;
 	int _filter;
-	bool _facing_right;
 	bool _can_use_fireball;
 	float _fireball_wait_timer;
 	int _health;
+	bool _grounded;
+	b2Vec2 _size;
+
+	//Attack variables
 	bool _can_attack;
 	float _attack_wait_timer;
-	//stores the health of the previous frame
-	int _previous_health;
+	bool _has_attacked;
+	float _attack_cooldown;
+	float _attack_duration;
+	float _time_to_start_attack;
+	float _knockback_duration;
 
 	//entities
 	EntityManager _entities;
@@ -105,22 +120,22 @@ class PlayerPhysicsComponent : public PhysicsComponent
 public:
 	void update(const float& dt) override;
 	void dash(bool rightSide, bool topSide);
-	sf::Vector2f fireball(sf::Vector2f target_position, sf::Vector2f player_position);
+	std::tuple<sf::Vector2f, float> fireball_direction(sf::Vector2f target_position, sf::Vector2f player_position);
 
 	explicit PlayerPhysicsComponent(Entity* p, const sf::Vector2f& size);
 
 	PlayerPhysicsComponent() = delete;
 protected:
-	b2Vec2 _size;
+	
 	sf::Vector2f _max_velocity;
-	bool _grounded;
+	
 	float _ground_speed;
 	bool _can_dash;
-	bool _is_dashing;
 	float _dash_current_duration;
-	std::shared_ptr<Entity> _target;
+	bool _is_dashing;
+	bool _just_dashed;
 
-	bool is_grounded() const;
+	std::shared_ptr<Entity> _target;
 
 	//Sounds
 	AudioSystem _dash_sound;
@@ -131,33 +146,49 @@ class EnemyAttackComponent : public PhysicsComponent
 {
 public:
 	void update(const float& dt) override;
+	explicit EnemyAttackComponent(Entity* p, Entity* player, const sf::Vector2f& size, int type);
 	void render() override;
 	explicit EnemyAttackComponent(Entity* p, const sf::Vector2f& size);
 
 	EnemyAttackComponent() = delete;
 
+	//true if the player can hit the enemy
 	bool player_in_range;
+	//true if the enemy can hit the player
+	bool in_range_of_player;
+	//bool to check if the enemy is moving
+	bool is_moving;
+	//if the enemy is defeated
+	bool defeated;
 
+	//Gets the distance between this enemy and the player on the x axis
+	bool x_distance(int distance);
 	// Set player reference for AI
-	void set_player_entity(std::shared_ptr<Entity> player);
-	bool is_attacking() const { return _is_attacking; }
+	//void set_player_entity(std::shared_ptr<Entity> player);
+	//bool is_attacking() const { return _is_attacking; }
 	bool is_asleep() const { return _is_asleep; }
 
 	// Sleep system
 	void put_to_sleep();
 
 protected:
+	//1 - enemy without attacks - 2 melee attacks enemy - 3 fireball attack enemy
+	int _enemy_type;
+	//Entity* _player;
 	b2Vec2 _size;
 
 	// Player tracking
-	std::shared_ptr<Entity> _player;
+	Entity* _player;
+
+	//if enemy can move
+	bool _can_move;
 
 	// Attack state
-	bool _can_attack;
-	float _attack_wait_timer;
-	bool _is_attacking;
-	float _attack_startup_timer;
-	bool _has_dealt_damage;
+	//bool _can_attack;
+	//float _attack_wait_timer;
+	//bool _is_attacking;
+	//float _attack_startup_timer;
+	//bool _has_dealt_damage;
 
 	// Sleep state
 	bool _is_asleep;
@@ -165,23 +196,27 @@ protected:
 	sf::Font _zzz_font;
 	float _sleep_timer;
 	bool _font_loaded;
+	sf::Color _default_colour;
+	sf::Color _chasing_colour;
+	
+	
 
 	// Helper functions
 	float get_distance_to_player() const;
 	void move_toward_player(const float& dt);
-	void perform_attack(const float& dt);
+	//void perform_attack(const float& dt);
 };
 
 //The class used to create a fireball
 class FireballComponent : public Component
 {
 public:
-	FireballComponent(Entity* p, sf::Vector2f position, sf::Vector2f velocity);
+	FireballComponent(Entity* p, sf::Vector2f position, sf::Vector2f velocity, float angle);
 	int get_contacts(std::array<b2ContactData, 10>& contacts) const;
 	void update(const float& dt) override;
 	void render() override;
-	void create_box_shape(const sf::Vector2f& size);
-	void create_capsule_shape(const sf::Vector2f& size);
+	void create_box_shape(const sf::Vector2f& size, int filter_group);
+	void create_capsule_shape(const sf::Vector2f& size, int filter_group);
 
 	~FireballComponent() override;
 
