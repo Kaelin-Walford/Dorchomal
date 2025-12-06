@@ -1,5 +1,6 @@
 #include "menu_scene.hpp"
 #include "settings_scene.hpp"
+#include "credits_scene.hpp"
 #include "../game_parameters.hpp"
 #include "../engine/renderer.hpp"
 #include "../scenes.hpp"
@@ -92,7 +93,7 @@ void MenuScene::create_main_menu_buttons()
         });
     _main_menu_buttons.push_back(std::move(settingsBtn));
 
-    // Credits button (placeholder)
+    // Credits button 
     auto creditsBtn = std::make_unique<UIButton>(
         sf::Vector2f(centerX, startY + (buttonHeight + spacing) * buttonIndex++),
         sf::Vector2f(buttonWidth, buttonHeight),
@@ -100,7 +101,12 @@ void MenuScene::create_main_menu_buttons()
         &_font
     );
     creditsBtn->set_callback([this]() {
-        std::cout << "Credits not implemented yet" << std::endl;
+        std::cout << "Opening credits..." << std::endl;
+        if (Scenes::creditsScene) {
+            hide_menus();  // Hide menu buttons
+            Scenes::creditsScene->set_return_scene(Scenes::menuScene);
+            GameSystem::set_active_scene(Scenes::creditsScene);
+        }
         });
     _main_menu_buttons.push_back(std::move(creditsBtn));
 
