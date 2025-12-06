@@ -16,7 +16,7 @@ int main()
 	Scenes::physics->load();
 	
 	Scenes::kaelinsPlayground = std::make_shared<KaelinsPlayground>();
-	Scenes::kaelinsPlayground->load();
+	//Scenes::kaelinsPlayground->load();
 
 	Scenes::levels = std::make_shared<LevelScenes>();
 	Scenes::levels->load();

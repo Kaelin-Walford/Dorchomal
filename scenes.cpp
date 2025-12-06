@@ -424,7 +424,7 @@ void KaelinsPlayground::unload()
 
 
 
-//level 1
+//level loader
 void LevelScenes::load() {
 	_load_level(param::level_1);
 }
@@ -472,6 +472,7 @@ void LevelScenes::update(const float& dt) {
 		loadLevel2 = true;
 	}
 	else if (ls::get_tile_at(_player->get_position()) == ls::END) {
+		unload();
 		unload();
 		_load_level(param::level_3);
 	}
