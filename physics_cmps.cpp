@@ -158,7 +158,6 @@ PhysicsComponent::PhysicsComponent(Entity* p, bool dyn) : Component(p), _dynamic
 
 	//Sounds
 	_attack_sound.add_sound("Slash.wav");
-	_walk_sound.add_sound("walk.wav");
 	_fireball_sound.add_sound("Slash.wav");
 }
 
@@ -362,6 +361,22 @@ const std::shared_ptr<Entity>& PhysicsComponent::make_entity()
 	return _entities.list.back();
 }
 
+//Delete fireballs
+void PhysicsComponent::delete_fireballs()
+{
+	for each(std::shared_ptr<Entity> entity in get_entities())
+	{
+		auto components = entity->get_components<FireballComponent>();
+		for each(std::shared_ptr<FireballComponent> component in components)
+		{
+			if (component->is_for_deletion())
+			{
+				entity->set_for_delete();
+			}
+		}
+	}
+}
+
 //Function to return the user data for the body
 const void* PhysicsComponent::get_user_data() const
 {
@@ -497,6 +512,7 @@ PlayerPhysicsComponent::PlayerPhysicsComponent(Entity* p, const sf::Vector2f& si
 
 	//Sounds
 	_dash_sound.add_sound("dash.wav");
+	_walk_sound.add_sound("walk.wav");
 
 	//define the fireball target shape
 	_target = make_entity();
@@ -644,7 +660,7 @@ void PlayerPhysicsComponent::update(const float& dt)
 			if (sf::Keyboard::isKeyPressed(param::move_dash))
 			{
 				//Play dash sound
-				_fireball_sound.play_sound();
+				_dash_sound.play_sound();
 
 				//angle dashes if the user presses multiple directions
 				if (sf::Keyboard::isKeyPressed(param::move_left) && sf::Keyboard::isKeyPressed(param::look_up))
@@ -735,6 +751,7 @@ void PlayerPhysicsComponent::update(const float& dt)
 			{
 				_attack_wait_timer = 0.f;
 				_can_attack = false;
+				_attack_sound.play_sound();
 			}
 		}
 	}
@@ -757,17 +774,7 @@ void PlayerPhysicsComponent::update(const float& dt)
 
 
 	//Delete fireballs
-	for (auto& entity : get_entities())
-	{
-		auto components = entity->get_components<FireballComponent>();
-		for (auto& component : components)
-		{
-			if (component->is_for_deletion())
-			{
-				entity->set_for_delete();
-			}
-		}
-	}
+	delete_fireballs();
 
 
 
@@ -866,6 +873,10 @@ EnemyAttackComponent::EnemyAttackComponent(Entity* p, Entity* player, const sf::
 	_can_move = true;
 	defeated = false;
 
+	//Sounds
+	_walk_sound.add_sound("Enemy walk.wav");
+	_damage_sound.add_sound("Enemy Damage.wav");
+
 	//1 - enemy without attacks - 2 melee attacks enemy - 3 fireball attack enemy
 	_enemy_type = type;
 
@@ -889,6 +900,9 @@ EnemyAttackComponent::EnemyAttackComponent(Entity* p, Entity* player, const sf::
 		_default_colour = sf::Color::Green;
 		_chasing_colour = sf::Color(0, 255, 150);
 	}
+
+	//set previous health
+	_previous_health = _health;
 
 	//set enemy colour
 	auto shape_components = _parent->get_components<ShapeComponent>();
@@ -956,6 +970,7 @@ void EnemyAttackComponent::update(const float& dt)
 						{
 							_attack_wait_timer = 0.f;
 							_can_attack = false;
+							_attack_sound.play_sound();
 						}
 					}
 				}
@@ -988,17 +1003,7 @@ void EnemyAttackComponent::update(const float& dt)
 				}
 
 				//Delete fireballs
-				for each(std::shared_ptr<Entity> entity in get_entities())
-				{
-					auto components = entity->get_components<FireballComponent>();
-					for each(std::shared_ptr<FireballComponent> component in components)
-					{
-						if (component->is_for_deletion())
-						{
-							entity->set_for_delete();
-						}
-					}
-				}
+				delete_fireballs();
 
 				//if the enemy is within stopping range
 				if (get_distance_to_player() <= param::fireball_enemy_stopping_range)
@@ -1016,6 +1021,9 @@ void EnemyAttackComponent::update(const float& dt)
 	if (_is_asleep)
 	{
 		_sleep_timer += dt;
+
+		//Delete fireballs
+		delete_fireballs();
 
 		// Update ZZZ text position
 		if (_font_loaded)
@@ -1049,7 +1057,7 @@ void EnemyAttackComponent::update(const float& dt)
 				}
 
 				// Mark for deletion when fully faded
-				if (alpha <= 0)
+				if (alpha <= 0 && get_entities().size() <= 0)
 				{
 					defeated = true;
 				}
@@ -1074,7 +1082,12 @@ void EnemyAttackComponent::update(const float& dt)
 	}
 	else if(!knockback)
 	{
-
+		//plays damage sound if health is less than previous frame
+		if (_health < _previous_health)
+		{
+			_damage_sound.play_sound();
+			_previous_health = _health;
+		}
 		// Handle being put to sleep (health reaches 0)
 		if (_health <= 0)
 		{
@@ -1114,6 +1127,10 @@ void EnemyAttackComponent::update(const float& dt)
 				if (_can_attack)
 				{
 					move_toward_player(dt);
+					if (_walk_sound.is_sound_playing() == sf::SoundSource::Stopped)
+					{
+						_walk_sound.play_sound();
+					}
 				}
 			}
 			else

@@ -25,29 +25,6 @@ void GameSystem::start(unsigned int width, unsigned int height,
 
 	AudioSystem::load_music("The tomb of the last dragon.ogg");
 
-	
-	AudioSystem tem;
-	tem.add_sound("dash.wav");
-	//tem.play_sound();
-	AudioSystem sys;
-	sys.add_sound("Slash.wav");
-	//sys.play_sound();
-	AudioSystem was;
-	was.add_sound("A tavern, a bard, a quest.wav");
-	//was.play_sound();
-
-	/*adds new buffer to the end of the sound buffer
-	sf::SoundBuffer buffer;
-	char path[100] = "../../../../resources/Sounds/Sound Effects/dash.wav";
-	buffer.loadFromFile(path);
-
-
-	//Adds the buffer sound to the end of the sound
-	sf::Sound sound;
-	sound.setBuffer(buffer);
-
-	sound.play();*/
-
 	while (window.isOpen())
 	{
 		static sf::Clock clock;

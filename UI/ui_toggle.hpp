@@ -2,6 +2,7 @@
 #include <SFML/Graphics.hpp>
 #include <functional>
 #include <string>
+#include "../engine/audio_system.hpp"
 
 // UI Toggle for on/off settings
 class UIToggle
@@ -36,4 +37,9 @@ private:
 
     // Helper
     void update_visuals();
+
+    //Sounds
+    AudioSystem _hover_sound;
+    AudioSystem _click_sound;
+    bool _already_played_sound;
 };

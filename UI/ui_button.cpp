@@ -32,12 +32,28 @@ UIButton::UIButton(const sf::Vector2f& position, const sf::Vector2f& size,
             textBounds.top + textBounds.height / 2.f);
         _text.setPosition(position);
     }
+
+    //Sounds
+    _hover_sound.add_sound("Hover.wav");
+    _click_sound.add_sound("Click.wav");
+    _already_played_sound = false;
 }
 
 void UIButton::update(const sf::Vector2i& mousePos)
 {
     sf::FloatRect bounds = _shape.getGlobalBounds();
     _is_hovered = bounds.contains(static_cast<sf::Vector2f>(mousePos));
+
+    //Plays hover sound when the player first hovers over a button
+    if (_is_hovered && !_already_played_sound)
+    {
+        _already_played_sound = true;
+        _hover_sound.play_sound();
+    }
+    else if(!_is_hovered)
+    {
+        _already_played_sound = false;
+    }
 
     _shape.setFillColor(_is_hovered ? _hover_color : _normal_color);
 }
@@ -60,6 +76,7 @@ bool UIButton::is_clicked(const sf::Event& event, const sf::Vector2i& mousePos)
             {
                 _callback();
             }
+            _click_sound.play_sound();
             return true;
         }
     }

@@ -2,6 +2,7 @@
 #include <SFML/Graphics.hpp>
 #include <functional>
 #include <string>
+#include "../engine/audio_system.hpp"
 
 class UIButton
 {
@@ -27,4 +28,9 @@ private:
 
     bool _is_hovered;
     std::function<void()> _callback;
+
+    //Sounds
+    AudioSystem _hover_sound;
+    AudioSystem _click_sound;
+    bool _already_played_sound;
 };
