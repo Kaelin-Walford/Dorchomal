@@ -15,6 +15,7 @@ public:
 	static void set_active_scene(const std::shared_ptr<Scene>& act_sc);
 	static std::shared_ptr<Scene>& get_active_scene() { return _active_scene; }
 	static sf::Vector2i get_mouse_position() { return _mouse_position; }
+	static void change_mouse_visibility(bool visible, sf::RenderWindow* window);
 
 private:
 	static void _init();
