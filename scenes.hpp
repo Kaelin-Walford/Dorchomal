@@ -1,6 +1,7 @@
 #pragma once
-#include "game_system.hpp"
-#include "box2d/box2d.h"
+#include "engine/game_system.hpp"
+#include <box2d/box2d.h>
+#include "audio_system.hpp"
 
 class PhysicsScene : public Scene
 {
@@ -25,14 +26,25 @@ public:
 	void load()override;
 	void unload() override;
 
+	void toggle_pause();
+	bool is_paused() const { return _is_paused; }
+	void set_paused(bool paused) { _is_paused = paused; }
+
 	//Collision functions
-	void find_which_enemy_to_defeat(char* shape_1, char* shape_2);
-	void find_which_enemy_is_in_range(char* shape_1, char* shape_2, bool inrange);
+	void find_which_enemy_to_damage(char* shape_1, char* shape_2);
+	void find_which_enemy_is_in_range(char* visitor_shape, bool in_range);
+	void find_which_enemy_has_the_player_in_range(b2ShapeId sensor_shape[], bool inrange);
+
+	//Attack Functions
+	void defeat_enemy(int which_enemy);
+	void player_knockback(int enemy);
+	void enemy_knockback(int index);
 private:
 	b2WorldId world_id;
 	std::vector<b2BodyId> bodies;
 	std::vector<std::shared_ptr<sf::RectangleShape>> sprites;
 	std::shared_ptr<Entity> _player;
+	bool _is_paused = false;
 	std::vector<std::shared_ptr<Entity>> _enemies;
 	int timer = 0;
 	bool scene_restart;
@@ -41,10 +53,20 @@ private:
 	const void* player_user_data;
 	const void* enemy_user_data;
 	const void* fireball_user_data;
+
+	//Sounds
+	AudioSystem _player_damage_sound;
 };
+
+class MenuScene;
+class SettingsScene;
+class CreditsScene;
 
 struct Scenes
 {
 	static std::shared_ptr<Scene> physics;
-	static std::shared_ptr<Scene> kaelinsPlayground;
+	static std::shared_ptr<KaelinsPlayground> kaelinsPlayground;
+	static std::shared_ptr<MenuScene> menuScene;
+	static std::shared_ptr<SettingsScene> settingsScene;
+	static std::shared_ptr<CreditsScene> creditsScene;
 };
