@@ -158,7 +158,6 @@ PhysicsComponent::PhysicsComponent(Entity* p, bool dyn) : Component(p), _dynamic
 
 	//Sounds
 	_attack_sound.add_sound("Slash.wav");
-	_walk_sound.add_sound("walk.wav");
 	_fireball_sound.add_sound("Slash.wav");
 }
 
@@ -497,6 +496,7 @@ PlayerPhysicsComponent::PlayerPhysicsComponent(Entity* p, const sf::Vector2f& si
 
 	//Sounds
 	_dash_sound.add_sound("dash.wav");
+	_walk_sound.add_sound("walk.wav");
 
 	//define the fireball target shape
 	_target = make_entity();
@@ -644,7 +644,7 @@ void PlayerPhysicsComponent::update(const float& dt)
 			if (sf::Keyboard::isKeyPressed(param::move_dash))
 			{
 				//Play dash sound
-				_fireball_sound.play_sound();
+				_dash_sound.play_sound();
 
 				//angle dashes if the user presses multiple directions
 				if (sf::Keyboard::isKeyPressed(param::move_left) && sf::Keyboard::isKeyPressed(param::look_up))
@@ -735,6 +735,7 @@ void PlayerPhysicsComponent::update(const float& dt)
 			{
 				_attack_wait_timer = 0.f;
 				_can_attack = false;
+				_attack_sound.play_sound();
 			}
 		}
 	}
@@ -866,6 +867,10 @@ EnemyAttackComponent::EnemyAttackComponent(Entity* p, Entity* player, const sf::
 	_can_move = true;
 	defeated = false;
 
+	//Sounds
+	_walk_sound.add_sound("Enemy walk.wav");
+	_damage_sound.add_sound("Enemy Damage.wav");
+
 	//1 - enemy without attacks - 2 melee attacks enemy - 3 fireball attack enemy
 	_enemy_type = type;
 
@@ -889,6 +894,9 @@ EnemyAttackComponent::EnemyAttackComponent(Entity* p, Entity* player, const sf::
 		_default_colour = sf::Color::Green;
 		_chasing_colour = sf::Color(0, 255, 150);
 	}
+
+	//set previous health
+	_previous_health = _health;
 
 	//set enemy colour
 	auto shape_components = _parent->get_components<ShapeComponent>();
@@ -956,6 +964,7 @@ void EnemyAttackComponent::update(const float& dt)
 						{
 							_attack_wait_timer = 0.f;
 							_can_attack = false;
+							_attack_sound.play_sound();
 						}
 					}
 				}
@@ -1074,7 +1083,12 @@ void EnemyAttackComponent::update(const float& dt)
 	}
 	else if(!knockback)
 	{
-
+		//plays damage sound if health is less than previous frame
+		if (_health < _previous_health)
+		{
+			_damage_sound.play_sound();
+			_previous_health = _health;
+		}
 		// Handle being put to sleep (health reaches 0)
 		if (_health <= 0)
 		{
@@ -1114,6 +1128,10 @@ void EnemyAttackComponent::update(const float& dt)
 				if (_can_attack)
 				{
 					move_toward_player(dt);
+					if (_walk_sound.is_sound_playing() == sf::SoundSource::Stopped)
+					{
+						_walk_sound.play_sound();
+					}
 				}
 			}
 			else

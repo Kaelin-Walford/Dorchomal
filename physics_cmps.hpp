@@ -82,7 +82,6 @@ protected:
 	b2ShapeId _shape_id;
 	b2ShapeId _attack_hitbox_shape_id;
 	bool _shape_destroyed;
-	//b2ShapeId _attack_hitbox_left_shape_id;
 	const bool _dynamic;
 	float _friction;
 	float _restitution;
@@ -183,12 +182,8 @@ protected:
 	//if enemy can move
 	bool _can_move;
 
-	// Attack state
-	//bool _can_attack;
-	//float _attack_wait_timer;
-	//bool _is_attacking;
-	//float _attack_startup_timer;
-	//bool _has_dealt_damage;
+	//previous health
+	int _previous_health;
 
 	// Sleep state
 	bool _is_asleep;
@@ -199,7 +194,8 @@ protected:
 	sf::Color _default_colour;
 	sf::Color _chasing_colour;
 	
-	
+	//Sounds
+	AudioSystem _damage_sound;
 
 	// Helper functions
 	float get_distance_to_player() const;

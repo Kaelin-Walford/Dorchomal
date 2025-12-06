@@ -1,6 +1,7 @@
 #pragma once
 #include "engine/game_system.hpp"
 #include <box2d/box2d.h>
+#include "audio_system.hpp"
 
 class PhysicsScene : public Scene
 {
@@ -52,6 +53,9 @@ private:
 	const void* player_user_data;
 	const void* enemy_user_data;
 	const void* fireball_user_data;
+
+	//Sounds
+	AudioSystem _player_damage_sound;
 };
 
 class MenuScene;

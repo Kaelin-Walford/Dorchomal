@@ -27,6 +27,11 @@ UIToggle::UIToggle(const sf::Vector2f& position, const std::string& label,
     _state_text.setFillColor(sf::Color(200, 200, 200));
     _state_text.setPosition(position.x + 75.f, position.y + 28.f);
 
+    //Sounds
+    _hover_sound.add_sound("Hover.wav");
+    _click_sound.add_sound("Click.wav");
+    _already_played_sound = false;
+
     update_visuals();
 }
 
@@ -69,7 +74,17 @@ void UIToggle::update(const sf::Vector2i& mousePos)
     _is_hovered = bounds.contains(static_cast<float>(mousePos.x),
         static_cast<float>(mousePos.y));
 
-    
+    //Plays hover sound when the player first hovers over a button
+    if (_is_hovered && !_already_played_sound)
+    {
+        _already_played_sound = true;
+        _hover_sound.play_sound();
+    }
+    else if (!_is_hovered)
+    {
+        _already_played_sound = false;
+    }
+
     if (_is_hovered)
     {
         _background.setOutlineThickness(3.f);
