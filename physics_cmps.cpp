@@ -40,7 +40,6 @@ PlatformComponent::~PlatformComponent()
 	_body_id = b2_nullBodyId;
 }
 
-//This is commented out as it requires the level_system.cpp
 
 void PlatformComponent::_create_chain_shape(const std::vector<sf::Vector2i>& tile_group) {
 	std::vector<b2Vec2> points;

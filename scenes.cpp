@@ -23,7 +23,7 @@ namespace b2 = box2d;
 std::shared_ptr<Scene> Scenes::physics;
 std::shared_ptr<KaelinsPlayground> Scenes::kaelinsPlayground;
 std::shared_ptr<MenuScene> Scenes::menuScene;
-std::shared_ptr<Scene> Scenes::level;
+std::shared_ptr<LevelScenes> Scenes::levels;
 
 //Load the physics scene, which is a scene that has cubes fall from the sky
 void PhysicsScene::load()
@@ -150,7 +150,7 @@ void KaelinsPlayground::load()
 	// Build Walls
 	for (int i = 0; i < 7; i += 2)
 	{
-		// Create SFML shapes for each wall
+		// makes the SFML shapes for each wall
 		std::shared_ptr<sf::RectangleShape> s = std::make_shared<sf::RectangleShape>();
 		s->setPosition(walls[i]);
 		s->setSize(walls[i + 1]);
@@ -159,7 +159,7 @@ void KaelinsPlayground::load()
 		sprites.push_back(s);
 
 
-		// Create a static physics body for the wall
+		//Creates the physics wall
 		b2BodyId b = testSceneBox2D::create_physics_box(Physics::get_world_id(), false, s);
 		bodies.push_back(b);
 	}
@@ -423,11 +423,13 @@ void KaelinsPlayground::unload()
 }
 
 
-void LevelScene::load() {
-	_load_level(param::level_2);
+
+//level 1
+void LevelScenes::load() {
+	_load_level(param::level_1);
 }
 
-void LevelScene::_load_level(const std::string& file_path) {
+void LevelScenes::_load_level(const std::string& file_path) {
 	ls::load_level(file_path, param::tile_size);
 
 
@@ -444,7 +446,7 @@ void LevelScene::_load_level(const std::string& file_path) {
 	playerSprite->get_sprite().setOrigin(sf::Vector2f(8, 8));
 	playerSprite->get_sprite().setScale(sf::Vector2f(param::player_size[0] / 16, param::player_size[1] / 16));
 
-	// Add PlayerPhysicsComponent so player can collide with terrain
+	// Adds PlayerPhysicsComponent so player can collide with terrain
 	std::shared_ptr<PlayerPhysicsComponent> playerPhysics = _player->add_component<PlayerPhysicsComponent>(sf::Vector2f(param::player_size[0], param::player_size[1]));
 	playerPhysics->create_capsule_shape(sf::Vector2f(param::player_size[0], param::player_size[1]), 
 	                                     param::player_weight, 
@@ -459,24 +461,30 @@ void LevelScene::_load_level(const std::string& file_path) {
 		_walls.back()->add_component<PlatformComponent>(walls);
 	}
 }
+bool loadLevel2 = false;
 
-void LevelScene::update(const float& dt) {
+void LevelScenes::update(const float& dt) {
 	Scene::update(dt);
 	_entities.update(dt);
-	if (ls::get_tile_at(_player->get_position()) == ls::END) {
+	if (ls::get_tile_at(_player->get_position()) == ls::END && loadLevel2 == false) {
 		unload();
 		_load_level(param::level_2);
+		loadLevel2 = true;
+	}
+	else if (ls::get_tile_at(_player->get_position()) == ls::END) {
+		unload();
+		_load_level(param::level_3);
 	}
 
 }
 
-void LevelScene::render() {
+void LevelScenes::render() {
 	ls::render(Renderer::get_window());
 	Scene::render();
 	_entities.render();
 }
 
-void LevelScene::unload() {
+void LevelScenes::unload() {
 	Scene::unload();
 	_player.reset();
 	_walls.clear();

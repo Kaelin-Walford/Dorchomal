@@ -58,7 +58,7 @@ void MenuScene::create_main_menu_buttons()
     startBtn->set_callback([this]() {
         std::cout << "Starting game..." << std::endl;
         _menu_state = MenuState::PLAYING;
-        GameSystem::set_active_scene(Scenes::kaelinsPlayground);
+        GameSystem::set_active_scene(Scenes::levels);
         });
     _main_menu_buttons.push_back(std::move(startBtn));
 

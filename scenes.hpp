@@ -48,9 +48,9 @@ private:
 	const void* fireball_user_data;
 };
 
-class LevelScene : public Scene {
+class LevelScenes : public Scene {
 public:
-	LevelScene() = default;
+	LevelScenes() = default;
 	void update(const float& dt) override;
 	void render() override;
 	void load()override;
@@ -68,5 +68,5 @@ struct Scenes
 	static std::shared_ptr<Scene> physics;
 	static std::shared_ptr<KaelinsPlayground> kaelinsPlayground;
 	static std::shared_ptr<MenuScene> menuScene;
-	static std::shared_ptr<Scene> level;
+	static std::shared_ptr<LevelScenes> levels;
 };

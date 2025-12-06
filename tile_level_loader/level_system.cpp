@@ -31,7 +31,7 @@ void LevelSystem::load_level(const string& path, float tile_size) {
     // Load level file
     ifstream f(path);
     if (!f.good()) {
-        cerr << "Couldn't open level file: " << path << endl;
+        cerr << "unable to access level file at location: " << path << endl;
         return;
     }
 
@@ -43,7 +43,7 @@ void LevelSystem::load_level(const string& path, float tile_size) {
         h++;
     }
     if (h == 0 || w == 0) {
-        cerr << "Level file empty or corrupted: " << path << endl;
+        cerr << "level file missing or corrupted: " << path << endl;
         return;
     }
 
@@ -51,11 +51,11 @@ void LevelSystem::load_level(const string& path, float tile_size) {
     _height = h;
     _tiles = make_unique<Tile[]>(w * h);
 
-    // Reset file to beginning
+    // restarts the file
     f.clear();
     f.seekg(0, ios::beg);
 
-    // Parse level data
+    // works through the level data
     size_t row = 0;
     while (getline(f, buffer)) {
         for (size_t col = 0; col < buffer.length(); col++) {
@@ -96,7 +96,7 @@ void LevelSystem::load_level(const string& path, float tile_size) {
 
     f.close();
 
-    // Load dirt texture
+    // load the dirt texture
     _wall_texture = make_shared<sf::Texture>();
     if (_wall_texture->loadFromFile("../../../../resources/textures/dirt_sprite_not_derivative.png")) {
         _use_texture = true;
@@ -138,14 +138,14 @@ void LevelSystem::render(RenderWindow& window) {
                 Sprite dirt_sprite(*_wall_texture);
                 dirt_sprite.setPosition(tile_pos);
                 
-                // Scale sprite to match tile size
+                // Scales sprite to match tile size
                 Vector2u tex_size = _wall_texture->getSize();
                 dirt_sprite.setScale(_tile_size / tex_size.x, 
                                      _tile_size / tex_size.y);
                 
                 window.draw(dirt_sprite);
             } 
-            // Fallback to solid colors for non-wall tiles or if texture failed
+            // reverts to solid colors for non-wall tiles or if texture failed to load
             else {
                 RectangleShape rs(Vector2f(_tile_size, _tile_size));
                 rs.setPosition(tile_pos);
@@ -237,7 +237,7 @@ vector<vector<Vector2i>> LevelSystem::get_groups(Tile type) {
         }
     }
 
-    // Group adjacent tiles
+    // Group nearby tiles
     while (!all_tiles.empty()) {
         vector<Vector2i> group;
         vector<Vector2i> to_process;
@@ -249,7 +249,7 @@ vector<vector<Vector2i>> LevelSystem::get_groups(Tile type) {
             to_process.pop_back();
             group.push_back(current);
 
-            // Check 4 adjacent tiles
+            // Check for nearby tiles
             const Vector2i neighbors[] = {
                 {current.x + 1, current.y},
                 {current.x - 1, current.y},
