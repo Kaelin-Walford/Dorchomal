@@ -5,6 +5,7 @@
 void ShapeComponent::update(const float& dt)
 {
 	_shape->setPosition(_parent->get_position());
+	_shape->setRotation(_parent->get_rotation());
 }
 
 void ShapeComponent::render() { Renderer::queue(_shape.get()); }

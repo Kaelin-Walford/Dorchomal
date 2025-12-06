@@ -1,6 +1,7 @@
 #include "menu_scene.hpp"
+#include "settings_scene.hpp"
 #include "../game_parameters.hpp"
-#include "renderer.hpp"
+#include "../engine/renderer.hpp"
 #include "../scenes.hpp"
 #include <iostream>
 
@@ -41,7 +42,7 @@ void MenuScene::load()
 void MenuScene::create_main_menu_buttons()
 {
     float centerX = param::game_width / 2.f;
-    float startY = param::game_height / 2.f - 120.f;  // Adjusted for more buttons
+    float startY = param::game_height / 2.f - 120.f;
     float buttonWidth = 300.f;
     float buttonHeight = 60.f;
     float spacing = 20.f;
@@ -74,7 +75,7 @@ void MenuScene::create_main_menu_buttons()
         });
     _main_menu_buttons.push_back(std::move(loadBtn));
 
-    // Settings button (placeholder)
+    // Settings button 
     auto settingsBtn = std::make_unique<UIButton>(
         sf::Vector2f(centerX, startY + (buttonHeight + spacing) * buttonIndex++),
         sf::Vector2f(buttonWidth, buttonHeight),
@@ -82,7 +83,12 @@ void MenuScene::create_main_menu_buttons()
         &_font
     );
     settingsBtn->set_callback([this]() {
-        std::cout << "Settings not implemented yet" << std::endl;
+        std::cout << "Opening settings..." << std::endl;
+        if (Scenes::settingsScene) {
+            hide_menus();  // hides menu
+            Scenes::settingsScene->set_return_scene(Scenes::menuScene);
+            GameSystem::set_active_scene(Scenes::settingsScene);
+        }
         });
     _main_menu_buttons.push_back(std::move(settingsBtn));
 
@@ -131,8 +137,8 @@ void MenuScene::create_pause_menu_buttons()
         std::cout << "Resuming game..." << std::endl;
         _menu_state = MenuState::PLAYING;
         hide_menus();
-        if (Scenes::kaelinsPlayground) {
-            Scenes::kaelinsPlayground->set_paused(false);
+        if (Scenes::levels) {
+            Scenes::levels->set_paused(false);
         }
         });
     _pause_menu_buttons.push_back(std::move(resumeBtn));
@@ -146,11 +152,11 @@ void MenuScene::create_pause_menu_buttons()
     );
     restartBtn->set_callback([this]() {
         std::cout << "Restarting level..." << std::endl;
-        Scenes::kaelinsPlayground->unload();
-        Scenes::kaelinsPlayground->load();
+        Scenes::levels->unload();
+        Scenes::levels->load();
         _menu_state = MenuState::PLAYING;
-        if (Scenes::kaelinsPlayground) {
-            Scenes::kaelinsPlayground->set_paused(false);
+        if (Scenes::levels) {
+            Scenes::levels->set_paused(false);
         }
         });
     _pause_menu_buttons.push_back(std::move(restartBtn));
@@ -277,8 +283,8 @@ void MenuScene::handle_event(const sf::Event& event, sf::RenderWindow& window)
 
         if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Escape)
         {
-            if (Scenes::kaelinsPlayground) {
-                Scenes::kaelinsPlayground->toggle_pause();
+            if (Scenes::levels) {
+                Scenes::levels->toggle_pause();
             }
         }
     }
