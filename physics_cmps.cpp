@@ -154,8 +154,7 @@ PhysicsComponent::PhysicsComponent(Entity* p, bool dyn) : Component(p), _dynamic
 	attacking = false;
 	_has_attacked = false;
 	in_range_of_target = false;
-	_attacking = false;
-	_in_range_of_target = false;
+	_shape_destroyed = false;
 
 	//Sounds
 	_attack_sound.add_sound("Slash.wav");
@@ -236,8 +235,16 @@ const b2ShapeId& PhysicsComponent::get_shape_id() const { return _shape_id; }
 //The physics component destructor
 PhysicsComponent::~PhysicsComponent()
 {
-	b2DestroyShape(_shape_id, true);
-	_shape_id = b2_nullShapeId;
+	if(!_shape_destroyed && b2Shape_IsValid(_attack_hitbox_shape_id))
+	{
+		b2DestroyShape(_attack_hitbox_shape_id, true);
+		_attack_hitbox_shape_id = b2_nullShapeId;
+	}
+	if(b2Shape_IsValid(_shape_id))
+	{
+		b2DestroyShape(_shape_id, true);
+		_shape_id = b2_nullShapeId;
+	}
 	b2DestroyBody(_body_id);
 	_body_id = b2_nullBodyId;
 }
@@ -441,13 +448,27 @@ void PhysicsComponent::fireball(sf::Vector2f velocity, float rotation, sf::Vecto
 
 	std::shared_ptr<ShapeComponent> shape = fireball->add_component<ShapeComponent>();
 	shape->set_shape<sf::RectangleShape>(sf::Vector2f(param::player_size[0], param::player_size[1]));
-	shape->get_shape().setFillColor(sf::Color::Blue);
+	shape->get_shape().setFillColor(sf::Color::Red);
 	shape->get_shape().setOrigin(sf::Vector2f(param::player_size[0] / 2.f, param::player_size[1] / 2.f));
 
 	std::shared_ptr<FireballComponent> fireball_component = fireball->add_component<FireballComponent>(sf::Vector2f(position.x, position.y - 1), velocity, rotation);
 	fireball_component->create_capsule_shape(sf::Vector2f(param::player_size[0], param::player_size[1]), b2Shape_GetFilter(_shape_id).groupIndex);
 
 	_can_use_fireball = false;
+}
+
+//Knockback the entity
+void PhysicsComponent::knockback_entity(float dt)
+{
+	//runs while being knockedback
+	_knockback_duration += dt;
+	if (_knockback_duration >= param::knockmack_duration)
+	{
+		knockback = false;
+		_knockback_duration = 0;
+		set_velocity(sf::Vector2f(0, 0));
+		set_gravity_scale(1);
+	}
 }
 
 /*
@@ -463,12 +484,10 @@ PlayerPhysicsComponent::PlayerPhysicsComponent(Entity* p, const sf::Vector2f& si
 	_can_dash = true;
 	_is_dashing = false;
 	knockback = false;
-	_facing_right = true;
+	facing_right = true;
 	_dash_current_duration = 0.f;
 	_fireball_wait_timer = 0.0f;
 	_health = param::health;
-	_health = param::player_max_health;
-	_previous_health = _health;
 	_just_dashed = false;
 	_knockback_duration = 0;
 
@@ -499,9 +518,6 @@ PlayerPhysicsComponent::PlayerPhysicsComponent(Entity* p, const sf::Vector2f& si
 	//Bullet items have higher-res collision detection
 	// b2Body_SetBullet(_body_id,true);
 }
-
-
-
 
 void PlayerPhysicsComponent::update(const float& dt)
 {
@@ -561,18 +577,18 @@ void PlayerPhysicsComponent::update(const float& dt)
 			if (sf::Keyboard::isKeyPressed(param::move_right))
 			{
 				set_velocity(sf::Vector2f(_ground_speed, get_velocity().y));
-				if (!_facing_right)
+				if (!facing_right)
 				{
-					_facing_right = true;
+					facing_right = true;
 				}
 
 			}
 			else
 			{
 				set_velocity(sf::Vector2f(-_ground_speed, get_velocity().y));
-				if (_facing_right)
+				if (facing_right)
 				{
-					_facing_right = false;
+					facing_right = false;
 				}
 			}
 			_just_dashed = false;
@@ -670,7 +686,7 @@ void PlayerPhysicsComponent::update(const float& dt)
 				else
 				{
 					//if statment to get velocity to apply in the direction the player is facing
-					float dash_speed = _facing_right ? param::dash_speed : -param::dash_speed;
+					float dash_speed = facing_right ? param::dash_speed : -param::dash_speed;
 					set_velocity(sf::Vector2f(dash_speed, get_velocity().y));
 				}
 
@@ -736,15 +752,7 @@ void PlayerPhysicsComponent::update(const float& dt)
 	}
 	else
 	{
-		//runs while being knockedback
-		_knockback_duration += dt;
-		if (_knockback_duration >= param::knockmack_duration)
-		{
-			knockback = false;
-			_knockback_duration = 0;
-			set_velocity(sf::Vector2f(0, 0));
-			set_gravity_scale(1);
-		}
+		knockback_entity(dt);
 	}
 
 
@@ -844,9 +852,6 @@ EnemyAttackComponent::EnemyAttackComponent(Entity* p, Entity* player, const sf::
 {
 	_size = ph::sv2_to_bv2(size);
 
-
-	_health = param::enemy_health; // Use parameter for health
-	_previous_health = _health;
 	player_in_range = false;
 	in_range_of_player = false;
 	_player = player;
@@ -855,9 +860,11 @@ EnemyAttackComponent::EnemyAttackComponent(Entity* p, Entity* player, const sf::
 	_attack_duration = param::enemy_attack_duration;
 	_time_to_start_attack = param::enemy_time_to_start_attack;
 	_fireball_wait_timer = 0;
-	_facing_right = false;
+	facing_right = false;
 	knockback = false;
 	_knockback_duration = 0;
+	_can_move = true;
+	defeated = false;
 
 	//1 - enemy without attacks - 2 melee attacks enemy - 3 fireball attack enemy
 	_enemy_type = type;
@@ -865,26 +872,27 @@ EnemyAttackComponent::EnemyAttackComponent(Entity* p, Entity* player, const sf::
 	if (_enemy_type == 1)
 	{
 		_health = 1;
+		_default_colour = sf::Color::Cyan;
+		_chasing_colour = sf::Color(0, 150, 255);
 	}
 	else if (_enemy_type == 2)
 	{
 		_health = 3;
 
 		create_attack_hitbox(sf::Vector2f(param::player_size[0], param::player_size[1]));
+		_default_colour = sf::Color(255, 105, 180);
+		_chasing_colour = sf::Color(255, 182, 193);
 	}
 	else
 	{
 		_health = 2;
+		_default_colour = sf::Color::Green;
+		_chasing_colour = sf::Color(0, 255, 150);
 	}
-	_previous_health = _health;
 
-	// Initialize attack variables
-	_can_attack = true;
-	_attack_wait_timer = 0.f;
-	_is_attacking = false;
-	_attack_startup_timer = 0.f;
-	_has_dealt_damage = false;
-	_player = nullptr;
+	//set enemy colour
+	auto shape_components = _parent->get_components<ShapeComponent>();
+	shape_components[0]->get_shape().setFillColor(_default_colour);
 
 	// Initialize sleep system
 	_is_asleep = false;
@@ -914,10 +922,214 @@ EnemyAttackComponent::EnemyAttackComponent(Entity* p, Entity* player, const sf::
 	b2Body_SetUserData(_body_id, "Enemy");
 }
 
-// Set the player entity reference
-void EnemyAttackComponent::set_player_entity(std::shared_ptr<Entity> player)
+void EnemyAttackComponent::update(const float& dt)
 {
-	_player = player;
+	const sf::Vector2f pos = _parent->get_position();
+	b2Vec2 b2_pos = ph::sv2_to_bv2(ph::invert_height(pos, param::game_height));
+
+	if (!knockback)
+	{
+		if(!_is_asleep)
+		{
+			if (_enemy_type == 2)
+			{
+				attack_timer(dt);
+
+				//if the enemy is in range of the player to start attacking them
+				if (x_distance(param::enemy_attack_start_range) && in_range_of_player)
+				{
+					//Stop moving
+					set_velocity(sf::Vector2f(0.f, get_velocity().y));
+
+					bool facing_player = false;
+					if ((_player->get_position().x < get_position().x) && !facing_right)
+					{
+						facing_player = true;
+					}
+					if ((_player->get_position().x > get_position().x) && facing_right)
+					{
+						facing_player = true;
+					}
+					if (facing_player)
+					{
+						if (_can_attack)
+						{
+							_attack_wait_timer = 0.f;
+							_can_attack = false;
+						}
+					}
+				}
+			}
+
+			if (_enemy_type == 3)
+			{
+				//Fireball timer
+				if (!_can_use_fireball)
+				{
+					_fireball_wait_timer += dt;
+					if (_fireball_wait_timer >= param::fireball_cooldown)
+					{
+						_fireball_wait_timer = 0;
+						_can_use_fireball = true;
+					}
+				}
+				else
+				{
+					int velocity = param::fireball_velocity;
+					if (_player->get_position().x < get_position().x)
+					{
+						velocity = -velocity;
+						fireball(sf::Vector2f(velocity, 0), (3 * M_PI / 2), pos);
+					}
+					else
+					{
+						fireball(sf::Vector2f(velocity, 0), (M_PI / 2), pos);
+					}
+				}
+
+				//Delete fireballs
+				for each(std::shared_ptr<Entity> entity in get_entities())
+				{
+					auto components = entity->get_components<FireballComponent>();
+					for each(std::shared_ptr<FireballComponent> component in components)
+					{
+						if (component->is_for_deletion())
+						{
+							entity->set_for_delete();
+						}
+					}
+				}
+
+				//if the enemy is within stopping range
+				if (get_distance_to_player() <= param::fireball_enemy_stopping_range)
+				{
+					_can_move = false;
+				}
+				else
+				{
+					_can_move = true;
+				}
+			}
+		}
+	}
+	// If enemy is asleep
+	if (_is_asleep)
+	{
+		_sleep_timer += dt;
+
+		// Update ZZZ text position
+		if (_font_loaded)
+		{
+			sf::Vector2f enemy_pos = _parent->get_position();
+			_zzz_text.setPosition(enemy_pos.x + param::zzz_offset_x,
+				enemy_pos.y + param::zzz_offset_y);
+
+			// Animate ZZZ (bob up and down slightly)
+			float bob = sin(_sleep_timer * 2.0f) * 3.0f;
+			_zzz_text.move(0.f, bob * dt);
+		}
+
+		// Gradually fade out after sleep_fade_time
+		if (_sleep_timer > param::sleep_fade_time)
+		{
+			auto shape_components = _parent->get_components<ShapeComponent>();
+			if (!shape_components.empty())
+			{
+				sf::Color current = shape_components[0]->get_shape().getFillColor();
+				int alpha = std::max(0, static_cast<int>(current.a - 100 * dt));
+				current.a = alpha;
+				shape_components[0]->get_shape().setFillColor(current);
+
+				// Also fade ZZZ text
+				if (_font_loaded)
+				{
+					sf::Color text_color = _zzz_text.getFillColor();
+					text_color.a = alpha;
+					_zzz_text.setFillColor(text_color);
+				}
+
+				// Mark for deletion when fully faded
+				if (alpha <= 0)
+				{
+					defeated = true;
+				}
+			}
+		}
+
+		if (knockback)
+		{
+			//runs while being knockedback
+			_knockback_duration += dt;
+			if (_knockback_duration >= param::knockmack_duration)
+			{
+				knockback = false;
+				_knockback_duration = 0;
+				set_velocity(sf::Vector2f(0, 0));
+				set_gravity_scale(1);
+			}
+		}
+
+		PhysicsComponent::update(dt);
+		return; // Don't do any other behavior while asleep
+	}
+	else if(!knockback)
+	{
+
+		// Handle being put to sleep (health reaches 0)
+		if (_health <= 0)
+		{
+			put_to_sleep();
+			return;
+		}
+
+		const sf::Vector2f pos = _parent->get_position();
+
+		// Check if player exists
+		if (_player)
+		{
+			float distance = get_distance_to_player();
+
+			// Visual feedback - change color based on state
+			auto shape_components = _parent->get_components<ShapeComponent>();
+			if (!shape_components.empty())
+			{
+				if (!_can_attack)
+				{
+					shape_components[0]->get_shape().setFillColor(sf::Color(255, 20, 147)); // Light red when attacking
+				}
+				else if (distance <= param::enemy_detection_range)
+				{
+					shape_components[0]->get_shape().setFillColor(_chasing_colour); // Orange when chasing
+				}
+				else
+				{
+					shape_components[0]->get_shape().setFillColor(_default_colour); // Normal red when idle
+				}
+			}
+
+			// State machine
+			if ((distance <= param::enemy_detection_range) && (_can_move == true))
+			{
+				// CHASE STATE
+				if (_can_attack)
+				{
+					move_toward_player(dt);
+				}
+			}
+			else
+			{
+				// IDLE STATE
+				// Stop moving
+				set_velocity(sf::Vector2f(0.f, get_velocity().y));
+			}
+		}
+
+		PhysicsComponent::update(dt);
+	}
+	else
+	{
+		knockback_entity(dt);
+	}
 }
 
 // Calculate distance to player
@@ -958,61 +1170,7 @@ void EnemyAttackComponent::move_toward_player(const float& dt)
 		// Only move horizontally, let gravity handle vertical
 		sf::Vector2f current_vel = get_velocity();
 		set_velocity(sf::Vector2f(dx * param::enemy_move_speed, current_vel.y));
-	}
-}
-
-// Handle attack logic
-void EnemyAttackComponent::perform_attack(const float& dt)
-{
-	if (!_can_attack)
-	{
-		_attack_wait_timer += dt;
-
-		// During startup phase
-		if (_is_attacking && _attack_startup_timer < param::enemy_attack_startup)
-		{
-			_attack_startup_timer += dt;
-
-			// Deal damage after startup
-			if (_attack_startup_timer >= param::enemy_attack_startup && !_has_dealt_damage)
-			{
-				// Check if still in range
-				if (player_in_range && _player)
-				{
-					// Deal damage to player
-					auto player_components = _player->get_components<PlayerPhysicsComponent>();
-					if (!player_components.empty())
-					{
-						player_components[0]->reduce_health(param::enemy_attack_damage);
-					}
-					_has_dealt_damage = true;
-				}
-			}
-		}
-
-		// End attack animation
-		if (_is_attacking && _attack_startup_timer >= param::enemy_attack_duration)
-		{
-			_is_attacking = false;
-			_attack_startup_timer = 0.f;
-		}
-
-		// Reset cooldown
-		if (_attack_wait_timer >= param::enemy_attack_cooldown)
-		{
-			_can_attack = true;
-			_attack_wait_timer = 0.f;
-			_has_dealt_damage = false;
-		}
-	}
-	else if (player_in_range)
-	{
-		// Start new attack
-		_can_attack = false;
-		_is_attacking = true;
-		_attack_wait_timer = 0.f;
-		_attack_startup_timer = 0.f;
-		_has_dealt_damage = false;
+		is_moving = true;
 	}
 }
 
@@ -1034,145 +1192,12 @@ void EnemyAttackComponent::put_to_sleep()
 		{
 			shape_components[0]->get_shape().setFillColor(sf::Color(100, 100, 255, 200)); // Light blue, semi-transparent
 		}
+		//destroy main shape
+		b2Body_Disable(_body_id);
 	}
 }
 
-void EnemyAttackComponent::update(const float& dt)
-{
-	const sf::Vector2f pos = _parent->get_position();
-	b2Vec2 b2_pos = ph::sv2_to_bv2(ph::invert_height(pos, param::game_height));
 
-	if(!knockback)
-	{
-		if (_enemy_type == 2)
-		{
-			attack_timer(dt);
-
-			//if the enemy is in range of the player to start attacking them
-			if (x_distance(param::enemy_attack_start_range) && in_range_of_player)
-			{
-				bool facing_player = false;
-				if ((_player->get_position().x < get_position().x) && !_facing_right)
-				{
-					facing_player = true;
-				}
-				if ((_player->get_position().x > get_position().x) && _facing_right)
-				{
-					facing_player = true;
-				}
-				if (facing_player)
-				{
-					if (_can_attack)
-					{
-						_attack_wait_timer = 0.f;
-						_can_attack = false;
-					}
-				}
-			}
-		}
-
-		if (_enemy_type == 3)
-		{
-			//Fireball timer
-			if (!_can_use_fireball)
-			{
-				_fireball_wait_timer += dt;
-				if (_fireball_wait_timer >= param::fireball_cooldown)
-				{
-					_fireball_wait_timer = 0;
-				}
-			}
-			else
-			{
-				int velocity = param::fireball_velocity;
-				if (_player->get_position().x < get_position().x)
-				{
-					velocity = -velocity;
-					fireball(sf::Vector2f(velocity, 0), (3 * M_PI / 2), pos);
-				}
-				else
-				{
-					fireball(sf::Vector2f(velocity, 0), (M_PI / 2), pos);
-				}
-			}
-
-			//Delete fireballs
-			for each(std::shared_ptr<Entity> entity in get_entities())
-			{
-				auto components = entity->get_components<FireballComponent>();
-				for each(std::shared_ptr<FireballComponent> component in components)
-				{
-					if (component->is_for_deletion())
-					{
-						entity->set_for_delete();
-					}
-	// If enemy is asleep
-	if (_is_asleep)
-	{
-		_sleep_timer += dt;
-
-		// Update ZZZ text position
-		if (_font_loaded)
-		{
-			sf::Vector2f enemy_pos = _parent->get_position();
-			_zzz_text.setPosition(enemy_pos.x + param::zzz_offset_x,
-				enemy_pos.y + param::zzz_offset_y);
-
-			// Animate ZZZ (bob up and down slightly)
-			float bob = sin(_sleep_timer * 2.0f) * 3.0f;
-			_zzz_text.move(0.f, bob * dt);
-		}
-
-		// Gradually fade out after sleep_fade_time
-		if (_sleep_timer > param::sleep_fade_time)
-		{
-			auto shape_components = _parent->get_components<ShapeComponent>();
-			if (!shape_components.empty())
-			{
-				sf::Color current = shape_components[0]->get_shape().getFillColor();
-				int alpha = std::max(0, static_cast<int>(current.a - 100 * dt));
-				current.a = alpha;
-				shape_components[0]->get_shape().setFillColor(current);
-
-				// Also fade ZZZ text
-				if (_font_loaded)
-				{
-					sf::Color text_color = _zzz_text.getFillColor();
-					text_color.a = alpha;
-					_zzz_text.setFillColor(text_color);
-				}
-
-				// Mark for deletion when fully faded
-				if (alpha <= 0)
-				{
-					_parent->set_for_delete();
-				}
-			}
-		}
-
-		PhysicsComponent::update(dt);
-		return; // Don't do any other behavior while asleep
-	}
-	else
-	{
-		//runs while being knockedback
-		_knockback_duration += dt;
-		if (_knockback_duration >= param::knockmack_duration)
-		{
-			knockback = false;
-			_knockback_duration = 0;
-			set_velocity(sf::Vector2f(0, 0));
-			set_gravity_scale(1);
-		}
-
-	// Handle being put to sleep (health reaches 0)
-	if (_health <= 0)
-	{
-		put_to_sleep();
-		return;
-	}
-	PhysicsComponent::update(dt);
-}
 
 //Returns true if  the distance between this enemy and the player only based on the x axis is less than or equal to the provided distance
 bool EnemyAttackComponent::x_distance(int distance)
@@ -1189,66 +1214,9 @@ bool EnemyAttackComponent::x_distance(int distance)
 	else
 	{
 		return false;
-	// Update health tracking
-	if (_health < _previous_health)
-	{
-		_previous_health = _health;
-		// Could add hit reaction here (flash, shake, etc.)
 	}
-
-	const sf::Vector2f pos = _parent->get_position();
-
-	// Check if player exists
-	if (_player)
-	{
-		float distance = get_distance_to_player();
-
-		// Visual feedback - change color based on state
-		auto shape_components = _parent->get_components<ShapeComponent>();
-		if (!shape_components.empty())
-		{
-			if (_is_attacking)
-			{
-				shape_components[0]->get_shape().setFillColor(sf::Color(255, 100, 100)); // Light red when attacking
-			}
-			else if (distance <= param::enemy_detection_range)
-			{
-				shape_components[0]->get_shape().setFillColor(sf::Color(255, 150, 0)); // Orange when chasing
-			}
-			else
-			{
-				shape_components[0]->get_shape().setFillColor(sf::Color::Red); // Normal red when idle
-			}
-		}
-
-		// State machine
-		if (distance <= param::enemy_attack_range)
-		{
-			// ATTACK STATE
-			// Stop moving
-			set_velocity(sf::Vector2f(0.f, get_velocity().y));
-
-			// Handle attack logic
-			perform_attack(dt);
-		}
-		else if (distance <= param::enemy_detection_range)
-		{
-			// CHASE STATE
-			if (!_is_attacking)
-			{
-				move_toward_player(dt);
-			}
-		}
-		else
-		{
-			// IDLE STATE
-			// Stop moving
-			set_velocity(sf::Vector2f(0.f, get_velocity().y));
-		}
-	}
-
-	PhysicsComponent::update(dt);
 }
+	
 
 // Render the ZZZ text if asleep
 void EnemyAttackComponent::render()

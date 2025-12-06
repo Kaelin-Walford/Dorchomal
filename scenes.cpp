@@ -29,7 +29,7 @@ namespace b2 = box2d;
 std::shared_ptr<Scene> Scenes::physics;
 std::shared_ptr<KaelinsPlayground> Scenes::kaelinsPlayground;
 std::shared_ptr<MenuScene> Scenes::menuScene;
-std::shared_ptr<SettingsScene> Scenes::settingsScene; 
+std::shared_ptr<SettingsScene> Scenes::settingsScene;
 std::shared_ptr<CreditsScene> Scenes::creditsScene;
 
 //Load the physics scene, which is a scene that has cubes fall from the sky
@@ -89,7 +89,7 @@ void PhysicsScene::load()
 	}
 
 	//AudioSystem::add_sound_to_queue();
-	
+
 }
 
 //The update function for the physics scene
@@ -196,11 +196,6 @@ void KaelinsPlayground::load()
 
 	std::shared_ptr<EnemyAttackComponent> ecmp = _enemy->add_component<EnemyAttackComponent>(_player.get(), sf::Vector2f(param::player_size[0], param::player_size[1]), 2);
 	ecmp->create_capsule_shape(sf::Vector2f(param::player_size[0], param::player_size[1]), param::player_weight, param::player_friction, param::player_restitution, -2, "1");
-	std::shared_ptr<EnemyAttackComponent> ecmp = _enemy->add_component<EnemyAttackComponent>(sf::Vector2f(param::enemy_size[0], param::enemy_size[1]));
-	ecmp->create_capsule_shape(sf::Vector2f(param::enemy_size[0], param::enemy_size[1]), param::enemy_weight, param::enemy_friction, param::enemy_restitution, -2, "1");
-
-	// SET PLAYER REFERENCE - CRITICAL FOR AI!
-	ecmp->set_player_entity(_player);
 
 	//test
 	//Create an enemy
@@ -212,13 +207,8 @@ void KaelinsPlayground::load()
 	shapet->get_shape().setFillColor(sf::Color::Red);
 	shapet->get_shape().setOrigin(sf::Vector2f(param::enemy_size[0] / 2.f, param::enemy_size[1] / 2.f));
 
-	std::shared_ptr<EnemyAttackComponent> tcmp = _test->add_component<EnemyAttackComponent>(sf::Vector2f(param::enemy_size[0], param::enemy_size[1]));
-	tcmp->create_capsule_shape(sf::Vector2f(param::enemy_size[0], param::enemy_size[1]), param::enemy_weight, param::enemy_friction, param::enemy_restitution, -2, "2");
-
 	std::shared_ptr<EnemyAttackComponent> tcmp = _test->add_component<EnemyAttackComponent>(_player.get(), sf::Vector2f(param::player_size[0], param::player_size[1]), 3);
 	tcmp->create_capsule_shape(sf::Vector2f(param::player_size[0], param::player_size[1]), param::player_weight, param::player_friction, param::player_restitution, -2, "2");
-	// SET PLAYER REFERENCE
-	tcmp->set_player_entity(_player);
 
 	player_user_data = cmp->get_user_data();
 	enemy_user_data = ecmp->get_user_data();
@@ -230,7 +220,7 @@ void KaelinsPlayground::load()
 void KaelinsPlayground::update(const float& dt)
 {
 	// Handle escape to pause
-	static bool escPressed = false;  
+	static bool escPressed = false;
 
 	if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape))
 	{
@@ -281,200 +271,138 @@ void KaelinsPlayground::update(const float& dt)
 
 				if (body_1 != nullptr && body_2 != nullptr)
 				{
-					//reduce health and apply knockback
-					player[0]->reduce_health(1);
-					for (int i = 0; i < _enemies.size(); i++)
-					{
-						if ((!strcmp(shape_1, (char*)_enemies[i]->get_components<EnemyAttackComponent>()[0]->get_shape_user_data()) || (!strcmp(shape_2, (char*)_enemies[i]->get_components<EnemyAttackComponent>()[0]->get_shape_user_data()))))
-						{
-							player_knockback(i);
-						}
-					}
-				}
 					//If the player walks into an enemy
 					if ((!strcmp(body_1, "Player") && !strcmp(body_2, "Enemy")) || (!strcmp(body_2, "Player") && !strcmp(body_1, "Enemy")))
 					{
-						//player[0]->reduce_health(1);
+						//reduce health and apply knockback
+						player[0]->reduce_health(1);
+						for (int i = 0; i < _enemies.size(); i++)
+						{
+							if ((!strcmp(shape_1, (char*)_enemies[i]->get_components<EnemyAttackComponent>()[0]->get_shape_user_data()) || (!strcmp(shape_2, (char*)_enemies[i]->get_components<EnemyAttackComponent>()[0]->get_shape_user_data()))))
+							{
+								player_knockback(i);
+							}
+						}
 					}
 
 					//If an enemy gets hit by a fireball 
 					else if ((!strcmp(body_1, "Fireball") && !strcmp(body_2, "Enemy")) || (!strcmp(body_2, "Fireball") && !strcmp(body_1, "Enemy")))
 					{
-						find_which_enemy_to_defeat(shape_1, shape_2);
+						find_which_enemy_to_damage(shape_1, shape_2);
+					}
+
+					//If the player gets hit by a fireball
+					else if ((!strcmp(body_1, "Fireball") && !strcmp(body_2, "Player")) || (!strcmp(body_2, "Fireball") && !strcmp(body_1, "Player")))
+					{
+						//reduce health
+						player[0]->reduce_health(1);
 					}
 				}
 			}
-		}
-		//Loop through each start sensor events
-		for (int i = 0; i < number_of_sensor_events_start; i++)
-		{
-			b2SensorBeginTouchEvent* begin_sensor_event = sensor_event.beginEvents + i;
-			if (b2Shape_IsValid(begin_sensor_event->visitorShapeId) && b2Shape_IsValid(begin_sensor_event->sensorShapeId))
-			{
-				char* sensor_body = (char*)b2Body_GetUserData(b2Shape_GetBody(begin_sensor_event->sensorShapeId));
-				char* visitor_body = (char*)b2Body_GetUserData(b2Shape_GetBody(begin_sensor_event->visitorShapeId));
-				char* sensor_shape = (char*)b2Shape_GetUserData(begin_sensor_event->sensorShapeId);
-				char* visitor_shape = (char*)b2Shape_GetUserData(begin_sensor_event->visitorShapeId);
-
-				if (sensor_body != nullptr && visitor_body != nullptr)
-				{
-					//If the player is in melee range of an enemy
-					if (!strcmp(sensor_shape, "Melee") && !strcmp(sensor_body, "Player") && !strcmp(visitor_body, "Enemy"))
-					{
-						find_which_enemy_is_in_range(visitor_shape, true);
-					}
-
-					//If the enemey is in melee range of the player
-					if (!strcmp(sensor_shape, "Melee") && !strcmp(sensor_body, "Enemy") && !strcmp(visitor_body, "Player"))
-					{
-						//set to 1 as the main shape will always be in the first spot
-						b2ShapeId sensor_shapes[1];
-						b2Body_GetShapes(b2Shape_GetBody(begin_sensor_event->sensorShapeId), sensor_shapes, 1);
-						find_which_enemy_has_the_player_in_range(sensor_shapes, true);
-					}
-				}
-			}
-		}
-		//loop through each end sensor events
-		for (int i = 0; i < number_of_sensor_events_end; i++)
-		{
-			b2SensorEndTouchEvent* end_sensor_event = sensor_event.endEvents + i;
-			if (b2Shape_IsValid(end_sensor_event->visitorShapeId) && b2Shape_IsValid(end_sensor_event->sensorShapeId))
-			{
-				char* end_sensor_body = (char*)b2Body_GetUserData(b2Shape_GetBody(end_sensor_event->sensorShapeId));
-				char* end_visitor_body = (char*)b2Body_GetUserData(b2Shape_GetBody(end_sensor_event->visitorShapeId));
-				char* end_sensor_shape = (char*)b2Shape_GetUserData(end_sensor_event->sensorShapeId);
-				char* end_visitor_shape = (char*)b2Shape_GetUserData(end_sensor_event->visitorShapeId);
-				if (end_sensor_body != nullptr && end_visitor_body != nullptr)
-				{
-					//If the player leaves melee range of an enemy
-					if (!strcmp(end_sensor_shape, "Melee") && !strcmp(end_sensor_body, "Player") && !strcmp(end_visitor_body, "Enemy"))
-					{
-						find_which_enemy_is_in_range(end_visitor_shape, false);
-					}
-
-					//If the enemy leaves melee range of the player
-					if (!strcmp(end_sensor_shape, "Melee") && !strcmp(end_sensor_body, "Enemy") && !strcmp(end_visitor_body, "Player"))
-					{
-						//set to 1 as the main shape will always be in the first spot
-						b2ShapeId sensor_shapes[1];
-						b2Body_GetShapes(b2Shape_GetBody(end_sensor_event->sensorShapeId), sensor_shapes, 1);
-						find_which_enemy_has_the_player_in_range(sensor_shapes, false);
 			//Loop through each start sensor events
 			for (int i = 0; i < number_of_sensor_events_start; i++)
 			{
 				b2SensorBeginTouchEvent* begin_sensor_event = sensor_event.beginEvents + i;
-
-				char* body_1 = (char*)b2Body_GetUserData(b2Shape_GetBody(begin_sensor_event->sensorShapeId));
-				char* body_2 = (char*)b2Body_GetUserData(b2Shape_GetBody(begin_sensor_event->visitorShapeId));
-				char* shape_1 = (char*)b2Shape_GetUserData(begin_sensor_event->sensorShapeId);
-				char* shape_2 = (char*)b2Shape_GetUserData(begin_sensor_event->visitorShapeId);
-
-				if (body_1 != nullptr && body_2 != nullptr)
+				if (b2Shape_IsValid(begin_sensor_event->visitorShapeId) && b2Shape_IsValid(begin_sensor_event->sensorShapeId))
 				{
-					//If the player is in melee range of an enemy
-					if (((!strcmp(shape_1, "Melee") && !strcmp(body_2, "Enemy")) || (!strcmp(shape_2, "Melee") && !strcmp(body_1, "Enemy"))))
+					char* sensor_body = (char*)b2Body_GetUserData(b2Shape_GetBody(begin_sensor_event->sensorShapeId));
+					char* visitor_body = (char*)b2Body_GetUserData(b2Shape_GetBody(begin_sensor_event->visitorShapeId));
+					char* sensor_shape = (char*)b2Shape_GetUserData(begin_sensor_event->sensorShapeId);
+					char* visitor_shape = (char*)b2Shape_GetUserData(begin_sensor_event->visitorShapeId);
+
+					if (sensor_body != nullptr && visitor_body != nullptr)
 					{
-						find_which_enemy_is_in_range(shape_1, shape_2, true);
+						//If the player is in melee range of an enemy
+						if (!strcmp(sensor_shape, "Melee") && !strcmp(sensor_body, "Player") && !strcmp(visitor_body, "Enemy"))
+						{
+							find_which_enemy_is_in_range(visitor_shape, true);
+						}
+
+						//If the enemey is in melee range of the player
+						if (!strcmp(sensor_shape, "Melee") && !strcmp(sensor_body, "Enemy") && !strcmp(visitor_body, "Player"))
+						{
+							//set to 1 as the main shape will always be in the first spot
+							b2ShapeId sensor_shapes[1];
+							b2Body_GetShapes(b2Shape_GetBody(begin_sensor_event->sensorShapeId), sensor_shapes, 1);
+							find_which_enemy_has_the_player_in_range(sensor_shapes, true);
+						}
 					}
 				}
-
 			}
 			//loop through each end sensor events
 			for (int i = 0; i < number_of_sensor_events_end; i++)
 			{
 				b2SensorEndTouchEvent* end_sensor_event = sensor_event.endEvents + i;
-				if (b2Shape_IsValid(end_sensor_event->visitorShapeId))
+				if (b2Shape_IsValid(end_sensor_event->visitorShapeId) && b2Shape_IsValid(end_sensor_event->sensorShapeId))
 				{
-					char* ebody_1 = (char*)b2Body_GetUserData(b2Shape_GetBody(end_sensor_event->sensorShapeId));
-					char* ebody_2 = (char*)b2Body_GetUserData(b2Shape_GetBody(end_sensor_event->visitorShapeId));
-					char* eshape_1 = (char*)b2Shape_GetUserData(end_sensor_event->sensorShapeId);
-					char* eshape_2 = (char*)b2Shape_GetUserData(end_sensor_event->visitorShapeId);
-					if (ebody_1 != nullptr && ebody_2 != nullptr)
+					char* end_sensor_body = (char*)b2Body_GetUserData(b2Shape_GetBody(end_sensor_event->sensorShapeId));
+					char* end_visitor_body = (char*)b2Body_GetUserData(b2Shape_GetBody(end_sensor_event->visitorShapeId));
+					char* end_sensor_shape = (char*)b2Shape_GetUserData(end_sensor_event->sensorShapeId);
+					char* end_visitor_shape = (char*)b2Shape_GetUserData(end_sensor_event->visitorShapeId);
+					if (end_sensor_body != nullptr && end_visitor_body != nullptr)
 					{
 						//If the player leaves melee range of an enemy
-						if (((!strcmp(eshape_1, "Melee") && !strcmp(ebody_2, "Enemy")) || (!strcmp(eshape_2, "Melee") && !strcmp(ebody_1, "Enemy"))))
+						if (!strcmp(end_sensor_shape, "Melee") && !strcmp(end_sensor_body, "Player") && !strcmp(end_visitor_body, "Enemy"))
 						{
-							find_which_enemy_is_in_range(eshape_1, eshape_2, false);
+							find_which_enemy_is_in_range(end_visitor_shape, false);
+						}
+
+						//If the enemy leaves melee range of the player
+						if (!strcmp(end_sensor_shape, "Melee") && !strcmp(end_sensor_body, "Enemy") && !strcmp(end_visitor_body, "Player"))
+						{
+							//set to 1 as the main shape will always be in the first spot
+							b2ShapeId sensor_shapes[1];
+							b2Body_GetShapes(b2Shape_GetBody(end_sensor_event->sensorShapeId), sensor_shapes, 1);
+							find_which_enemy_has_the_player_in_range(sensor_shapes, false);
 						}
 					}
 				}
 			}
 
-		//if the player attacks an enemy
-		if (player[0]->attacking)
-		{
-			for (int i = 0; i < _enemies.size(); i++)
-			{
-				//checks that the player is in range with any enemy and deals damage if so
-				bool facing_enemy = false;
-				if ((_enemies[i]->get_position().x < _player->get_position().x) && !_player->get_components<PlayerPhysicsComponent>()[0]->_facing_right)
-				{
-					facing_enemy = true;
-				}
-				else if ((_enemies[i]->get_position().x > _player->get_position().x) && _player->get_components<PlayerPhysicsComponent>()[0]->_facing_right)
-				{
-					facing_enemy = true;
-				}
-
-				if (facing_enemy)
-				{
-					if (_enemies[i]->get_components<EnemyAttackComponent>()[0]->player_in_range)
-					{
-						enemy_knockback(i);
-						damage_enemy(i, 1);
-					}
-				}
-			}
-			player[0]->attacking = false;
-		}
-
-		//Enemy Attacks the player
-		for (int i = 0; i < _enemies.size(); i++)
-		{
-			if (_enemies[i]->get_components<EnemyAttackComponent>()[0]->in_range_of_player && _enemies[i]->get_components<EnemyAttackComponent>()[0]->attacking)
-			{
-				player[0]->reduce_health(2);
-				player_knockback(i);
-			}
-		}
-
-		//If the player dies
-		if (player[0]->get_health() <= 0)
-		{
-			scene_restart = true;
-		}
-
-		Scene::update(dt);
-
-		//sets enemy velocity on the x axis to zero to avoid being pushed by the player
-		for (int i = 0; i < _enemies.size(); i++)
-		{
-			auto enemy = _enemies[i]->get_components<EnemyAttackComponent>()[0];
-			//checks that the enemy is not currently being knocked back
-			if(!enemy->knockback)
-			{
-				enemy->set_velocity(sf::Vector2f(0, _enemies[i]->get_components<EnemyAttackComponent>()[0]->get_velocity().y));
-			}
 			//if the player attacks an enemy
-			if (player[0]->_attacking)
+			if (player[0]->attacking)
 			{
 				for (int i = 0; i < _enemies.size(); i++)
 				{
 					//checks that the player is in range with any enemy and deals damage if so
-					if (_enemies[i]->get_components<EnemyAttackComponent>()[0]->player_in_range)
+					bool facing_enemy = false;
+					if ((_enemies[i]->get_position().x < _player->get_position().x) && !_player->get_components<PlayerPhysicsComponent>()[0]->facing_right)
 					{
-						// Reduce enemy health instead of instant delete
-						_enemies[i]->get_components<EnemyAttackComponent>()[0]->reduce_health(1);
+						facing_enemy = true;
+					}
+					else if ((_enemies[i]->get_position().x > _player->get_position().x) && _player->get_components<PlayerPhysicsComponent>()[0]->facing_right)
+					{
+						facing_enemy = true;
+					}
+
+					if (facing_enemy)
+					{
+						if (_enemies[i]->get_components<EnemyAttackComponent>()[0]->player_in_range)
+						{
+							enemy_knockback(i);
+							_enemies[i]->get_components<EnemyAttackComponent>()[0]->reduce_health(1);
+						}
 					}
 				}
+				player[0]->attacking = false;
+			}
+
+			//Enemy Attacks the player
+			for (int i = 0; i < _enemies.size(); i++)
+			{
+				if (_enemies[i]->get_components<EnemyAttackComponent>()[0]->in_range_of_player && _enemies[i]->get_components<EnemyAttackComponent>()[0]->attacking)
+				{
+					player[0]->reduce_health(2);
+					player_knockback(i);
+				}
+				defeat_enemy(i);
 			}
 
 			//If the player dies
-			/*if (player[0]->get_health() <= 0)
+			if (player[0]->get_health() <= 0)
 			{
 				scene_restart = true;
-			}*/
+			}
 
 			Scene::update(dt);
 		}
@@ -482,13 +410,12 @@ void KaelinsPlayground::update(const float& dt)
 }
 
 //Function to see which enemy was hit 
-void KaelinsPlayground::find_which_enemy_to_defeat(char* shape_1, char* shape_2)
+void KaelinsPlayground::find_which_enemy_to_damage(char* shape_1, char* shape_2)
 {
 	for (int i = 0; i < _enemies.size(); i++)
 	{
 		if (!strcmp(shape_1, (char*)_enemies[i]->get_components<EnemyAttackComponent>()[0]->get_shape_user_data()) || !strcmp(shape_2, (char*)_enemies[i]->get_components<EnemyAttackComponent>()[0]->get_shape_user_data()))
 		{
-			damage_enemy(i, 2);
 			// Reduce enemy health instead of instant delete
 			_enemies[i]->get_components<EnemyAttackComponent>()[0]->reduce_health(1);
 		}
@@ -500,7 +427,7 @@ void KaelinsPlayground::find_which_enemy_is_in_range(char* visitor_shape, bool i
 {
 	for (int i = 0; i < _enemies.size(); i++)
 	{
-		if (!strcmp(visitor_shape, (char*)_enemies[i]->get_components<EnemyAttackComponent>()[0]->get_shape_user_data()) /* || !strcmp(shape_2, (char*)_enemies[i]->get_components<EnemyAttackComponent>()[0]->get_shape_user_data())*/)
+		if (!strcmp(visitor_shape, (char*)_enemies[i]->get_components<EnemyAttackComponent>()[0]->get_shape_user_data()))
 		{
 			_enemies[i]->get_components<EnemyAttackComponent>()[0]->player_in_range = in_range;
 
@@ -524,12 +451,12 @@ void KaelinsPlayground::find_which_enemy_has_the_player_in_range(b2ShapeId senso
 }
 
 //Function to damage the enemy
-void KaelinsPlayground::damage_enemy(int which_enemy, int damage)
+void KaelinsPlayground::defeat_enemy(int which_enemy)
 {
 	auto enemy = _enemies[which_enemy]->get_components<EnemyAttackComponent>()[0];
-	enemy->reduce_health(damage);
+	//enemy->reduce_health(damage);
 
-	if (enemy->get_health() <= 0)
+	if (enemy->defeated == true)
 	{
 		_enemies[which_enemy]->set_for_delete();
 		_enemies[which_enemy].reset();
@@ -568,10 +495,6 @@ void KaelinsPlayground::enemy_knockback(int index)
 		enemy->set_velocity(sf::Vector2f(param::knockback_force[0], param::knockback_force[1]));
 	}
 }
-
-
-
-
 
 void KaelinsPlayground::render()
 {

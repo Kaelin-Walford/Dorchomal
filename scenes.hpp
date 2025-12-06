@@ -30,12 +30,12 @@ public:
 	void set_paused(bool paused) { _is_paused = paused; }
 
 	//Collision functions
-	void find_which_enemy_to_defeat(char* shape_1, char* shape_2);
+	void find_which_enemy_to_damage(char* shape_1, char* shape_2);
 	void find_which_enemy_is_in_range(char* visitor_shape, bool in_range);
 	void find_which_enemy_has_the_player_in_range(b2ShapeId sensor_shape[], bool inrange);
 
 	//Attack Functions
-	void damage_enemy(int which_enemy, int damage);
+	void defeat_enemy(int which_enemy);
 	void player_knockback(int enemy);
 	void enemy_knockback(int index);
 private:
