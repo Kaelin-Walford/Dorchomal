@@ -361,6 +361,22 @@ const std::shared_ptr<Entity>& PhysicsComponent::make_entity()
 	return _entities.list.back();
 }
 
+//Delete fireballs
+void PhysicsComponent::delete_fireballs()
+{
+	for each(std::shared_ptr<Entity> entity in get_entities())
+	{
+		auto components = entity->get_components<FireballComponent>();
+		for each(std::shared_ptr<FireballComponent> component in components)
+		{
+			if (component->is_for_deletion())
+			{
+				entity->set_for_delete();
+			}
+		}
+	}
+}
+
 //Function to return the user data for the body
 const void* PhysicsComponent::get_user_data() const
 {
@@ -758,17 +774,7 @@ void PlayerPhysicsComponent::update(const float& dt)
 
 
 	//Delete fireballs
-	for (auto& entity : get_entities())
-	{
-		auto components = entity->get_components<FireballComponent>();
-		for (auto& component : components)
-		{
-			if (component->is_for_deletion())
-			{
-				entity->set_for_delete();
-			}
-		}
-	}
+	delete_fireballs();
 
 
 
@@ -997,17 +1003,7 @@ void EnemyAttackComponent::update(const float& dt)
 				}
 
 				//Delete fireballs
-				for each(std::shared_ptr<Entity> entity in get_entities())
-				{
-					auto components = entity->get_components<FireballComponent>();
-					for each(std::shared_ptr<FireballComponent> component in components)
-					{
-						if (component->is_for_deletion())
-						{
-							entity->set_for_delete();
-						}
-					}
-				}
+				delete_fireballs();
 
 				//if the enemy is within stopping range
 				if (get_distance_to_player() <= param::fireball_enemy_stopping_range)
@@ -1025,6 +1021,9 @@ void EnemyAttackComponent::update(const float& dt)
 	if (_is_asleep)
 	{
 		_sleep_timer += dt;
+
+		//Delete fireballs
+		delete_fireballs();
 
 		// Update ZZZ text position
 		if (_font_loaded)
@@ -1058,7 +1057,7 @@ void EnemyAttackComponent::update(const float& dt)
 				}
 
 				// Mark for deletion when fully faded
-				if (alpha <= 0)
+				if (alpha <= 0 && get_entities().size() <= 0)
 				{
 					defeated = true;
 				}

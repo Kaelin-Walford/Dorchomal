@@ -54,6 +54,7 @@ public:
 	//entity functions
 	const std::shared_ptr<Entity>& make_entity();
 	std::vector<std::shared_ptr<Entity>>& get_entities() { return _entities.list; }
+	void delete_fireballs();
 
 	//Collision Information
 	const void* get_user_data() const;

@@ -111,7 +111,7 @@ bool UIToggle::is_clicked(const sf::Event& event, const sf::Vector2i& mousePos)
             {
                 _callback(_is_on);
             }
-
+            _click_sound.play_sound();
             return true;
         }
     }
