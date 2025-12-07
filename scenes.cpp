@@ -34,9 +34,24 @@ std::shared_ptr<CreditsScene> Scenes::creditsScene;
 std::shared_ptr<LevelScenes> Scenes::levels;
 
 
+bool loadLevel2 = false;
+bool loadLevel3 = false;
+
 //level loader
 void LevelScenes::load() {
-	_load_level(param::level_1);
+	//_load_level(param::level_1);
+	if (loadLevel2 == false && loadLevel3 == false) {
+		unload();
+		_load_level(param::level_1);
+	}
+	else if (loadLevel2 == true && loadLevel3 == false) {
+		unload();
+		_load_level(param::level_2);
+	}
+	else if (loadLevel2 == true && loadLevel3 == true) {
+		unload();
+		_load_level(param::level_3);
+	}
 }
 
 void LevelScenes::_load_level(const std::string& file_path) {
@@ -58,12 +73,7 @@ void LevelScenes::_load_level(const std::string& file_path) {
 
 	// Adds PlayerPhysicsComponent so player can collide with terrain
 	std::shared_ptr<PlayerPhysicsComponent> playerPhysics = _player->add_component<PlayerPhysicsComponent>(sf::Vector2f(param::player_size[0], param::player_size[1]));
-	playerPhysics->create_capsule_shape(sf::Vector2f(param::player_size[0], param::player_size[1]), 
-	                                     param::player_weight, 
-	                                     param::player_friction, 
-	                                     param::player_restitution, 
-	                                     -1, 
-	                                     "Player");
+	playerPhysics->create_capsule_shape(sf::Vector2f(param::player_size[0], param::player_size[1]), param::player_weight, param::player_friction, param::player_restitution, -1, "Player");
 
 	std::vector<std::vector<sf::Vector2i>> wall_groups = ls::get_groups(ls::WALL);
 	for (const std::vector<sf::Vector2i>& walls : wall_groups) {
@@ -73,7 +83,7 @@ void LevelScenes::_load_level(const std::string& file_path) {
 
 	//Create an enemy
 	std::shared_ptr<Entity> _enemy = make_entity();
-	_enemy->set_position(sf::Vector2f(1800, 900));
+	_enemy->set_position(sf::Vector2f(1800, 700));
 
 	std::shared_ptr<ShapeComponent> shapew = _enemy->add_component<ShapeComponent>();
 	shapew->set_shape<sf::RectangleShape>(sf::Vector2f(param::enemy_size[0], param::enemy_size[1]));
@@ -86,7 +96,7 @@ void LevelScenes::_load_level(const std::string& file_path) {
 	//test
 	//Create an enemy
 	std::shared_ptr<Entity> _test = make_entity();
-	_test->set_position(sf::Vector2f(1000, 900));
+	_test->set_position(sf::Vector2f(1000, 600));
 
 	std::shared_ptr<ShapeComponent> shapet = _test->add_component<ShapeComponent>();
 	shapet->set_shape<sf::RectangleShape>(sf::Vector2f(param::enemy_size[0], param::enemy_size[1]));
@@ -103,10 +113,6 @@ void LevelScenes::_load_level(const std::string& file_path) {
 	_enemies.push_back(_test);
 }
 
-
-bool loadLevel2 = false;
-bool loadLevel3 = false;
-
 void LevelScenes::update(const float& dt) {
 	Scene::update(dt);
 	_entities.update(dt);
@@ -119,10 +125,12 @@ void LevelScenes::update(const float& dt) {
 		unload();
 		_load_level(param::level_3);
 		loadLevel3 = true;
+		std::cerr << loadLevel2 << std::endl;
+		std::cerr << loadLevel3 << std::endl;
 	}
 	else if (ls::get_tile_at(_player->get_position()) == ls::END && loadLevel2 == true && loadLevel3 == true) {
 		unload();
-		
+		Scenes::creditsScene;
 	}
 
 	// Handle escape to pause
@@ -150,6 +158,8 @@ void LevelScenes::update(const float& dt) {
 		{
 			unload();
 			load();
+			std::cerr << "SCENE RESTARTED" << std::endl;
+			scene_restart = false;
 		}
 		else
 		{
@@ -202,6 +212,7 @@ void LevelScenes::update(const float& dt) {
 					{
 						//reduce health
 						player[0]->reduce_health(1);
+						std::cerr << "PLAYER HURT" << std::endl;
 					}
 				}
 			}
@@ -307,6 +318,7 @@ void LevelScenes::update(const float& dt) {
 			//If the player dies
 			if (player[0]->get_health() <= 0)
 			{
+				std::cerr << "PLAYER HEALTH 0" << std::endl;
 				scene_restart = true;
 			}
 
@@ -437,6 +449,7 @@ void LevelScenes::toggle_pause()
 
 void LevelScenes::unload() {
 	Scene::unload();
+	_enemies.clear();
 	_player.reset();
 	_walls.clear();
 }
