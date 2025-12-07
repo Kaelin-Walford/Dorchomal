@@ -10,13 +10,11 @@
 #include <cmath>
 #include "audio_system.hpp"
 
+#include "UI/game_settings.hpp"
 using param = Parameters;
 using ph = Physics;
 //using ls = LevelSystem;
 
-std::vector<sf::SoundBuffer> AudioSystem::_sound_buffers;
-std::vector<sf::Sound> AudioSystem::_sounds;
-sf::Music AudioSystem::_music;
 
 /*
 *	Platform Component
@@ -235,12 +233,12 @@ const b2ShapeId& PhysicsComponent::get_shape_id() const { return _shape_id; }
 //The physics component destructor
 PhysicsComponent::~PhysicsComponent()
 {
-	if(!_shape_destroyed && b2Shape_IsValid(_attack_hitbox_shape_id))
+	if (!_shape_destroyed && b2Shape_IsValid(_attack_hitbox_shape_id))
 	{
 		b2DestroyShape(_attack_hitbox_shape_id, true);
 		_attack_hitbox_shape_id = b2_nullShapeId;
 	}
-	if(b2Shape_IsValid(_shape_id))
+	if (b2Shape_IsValid(_shape_id))
 	{
 		b2DestroyShape(_shape_id, true);
 		_shape_id = b2_nullShapeId;
@@ -521,6 +519,7 @@ PlayerPhysicsComponent::PlayerPhysicsComponent(Entity* p, const sf::Vector2f& si
 
 void PlayerPhysicsComponent::update(const float& dt)
 {
+	auto& settings = GameSettings::get_instance();
 	const sf::Vector2f pos = _parent->get_position();
 	b2Vec2 b2_pos = ph::sv2_to_bv2(ph::invert_height(pos, param::game_height));
 
@@ -567,14 +566,14 @@ void PlayerPhysicsComponent::update(const float& dt)
 		}
 
 		//Handles left and right movement
-		if (sf::Keyboard::isKeyPressed(param::move_left) || sf::Keyboard::isKeyPressed(param::move_right))
+		if (sf::Keyboard::isKeyPressed(settings.key_move_left) || sf::Keyboard::isKeyPressed(settings.key_move_right))
 		{
 			if (get_gravity_scale() == 0)
 			{
 				set_gravity_scale(1);
 			}
 			// Moving Either Left or Right
-			if (sf::Keyboard::isKeyPressed(param::move_right))
+			if (sf::Keyboard::isKeyPressed(settings.key_move_right))
 			{
 				set_velocity(sf::Vector2f(_ground_speed, get_velocity().y));
 				if (!facing_right)
@@ -641,43 +640,43 @@ void PlayerPhysicsComponent::update(const float& dt)
 		//Handles the dash
 		if (_can_dash)
 		{
-			if (sf::Keyboard::isKeyPressed(param::move_dash))
+			if (sf::Keyboard::isKeyPressed(settings.key_dash))
 			{
 				//Play dash sound
 				_fireball_sound.play_sound();
 
 				//angle dashes if the user presses multiple directions
-				if (sf::Keyboard::isKeyPressed(param::move_left) && sf::Keyboard::isKeyPressed(param::look_up))
+				if (sf::Keyboard::isKeyPressed(settings.key_move_left) && sf::Keyboard::isKeyPressed(settings.key_look_up))
 				{
 					dash(false, true);
 				}
-				else if (sf::Keyboard::isKeyPressed(param::move_left) && sf::Keyboard::isKeyPressed(param::look_down))
+				else if (sf::Keyboard::isKeyPressed(settings.key_move_left) && sf::Keyboard::isKeyPressed(settings.key_look_down))
 				{
 					dash(false, false);
 				}
-				else if (sf::Keyboard::isKeyPressed(param::move_right) && sf::Keyboard::isKeyPressed(param::look_up))
+				else if (sf::Keyboard::isKeyPressed(settings.key_move_right) && sf::Keyboard::isKeyPressed(settings.key_look_up))
 				{
 					dash(true, true);
 				}
-				else if (sf::Keyboard::isKeyPressed(param::move_right) && sf::Keyboard::isKeyPressed(param::look_down))
+				else if (sf::Keyboard::isKeyPressed(settings.key_move_right) && sf::Keyboard::isKeyPressed(settings.key_look_down))
 				{
 					dash(true, false);
 				}
 
 				//dashes in one directions
-				else if (sf::Keyboard::isKeyPressed(param::look_up))
+				else if (sf::Keyboard::isKeyPressed(settings.key_look_up))
 				{
 					set_velocity(sf::Vector2f(get_velocity().x, param::dash_speed));
 				}
-				else if (sf::Keyboard::isKeyPressed(param::move_right))
+				else if (sf::Keyboard::isKeyPressed(settings.key_move_right))
 				{
 					set_velocity(sf::Vector2f(param::dash_speed, get_velocity().y));
 				}
-				else if (sf::Keyboard::isKeyPressed(param::look_down))
+				else if (sf::Keyboard::isKeyPressed(settings.key_look_down))
 				{
 					set_velocity(sf::Vector2f(get_velocity().x, -param::dash_speed));
 				}
-				else if (sf::Keyboard::isKeyPressed(param::move_left))
+				else if (sf::Keyboard::isKeyPressed(settings.key_move_left))
 				{
 					set_velocity(sf::Vector2f(-param::dash_speed, get_velocity().y));
 				}
@@ -697,7 +696,7 @@ void PlayerPhysicsComponent::update(const float& dt)
 		}
 
 		// Handle Jump
-		if (sf::Keyboard::isKeyPressed(param::move_jump))
+		if (sf::Keyboard::isKeyPressed(settings.key_jump))
 		{
 			if (_grounded)
 			{
@@ -707,12 +706,12 @@ void PlayerPhysicsComponent::update(const float& dt)
 		}
 
 		// Handle Fireball
-		if (sf::Keyboard::isKeyPressed(param::attack_fire_ball))
+		if (sf::Keyboard::isKeyPressed(settings.key_fireball))
 		{
 			//Displays the target on the screen
 			_target->set_visible(true);
 			_target->set_position(sf::Vector2f(GameSystem::get_mouse_position()));
-			if (sf::Mouse::isButtonPressed(param::attack_fire_ball_fire) && _can_use_fireball)
+			if (sf::Mouse::isButtonPressed(settings.mouse_fireball) && _can_use_fireball)
 			{
 				//play fireball sound
 				_fireball_sound.play_sound();
@@ -729,7 +728,7 @@ void PlayerPhysicsComponent::update(const float& dt)
 		}
 
 		//Handle Melee Attack
-		if (sf::Keyboard::isKeyPressed(param::attack_melee))
+		if (sf::Keyboard::isKeyPressed(settings.key_melee))
 		{
 			if (_can_attack)
 			{
@@ -929,7 +928,7 @@ void EnemyAttackComponent::update(const float& dt)
 
 	if (!knockback)
 	{
-		if(!_is_asleep)
+		if (!_is_asleep)
 		{
 			if (_enemy_type == 2)
 			{
@@ -1072,7 +1071,7 @@ void EnemyAttackComponent::update(const float& dt)
 		PhysicsComponent::update(dt);
 		return; // Don't do any other behavior while asleep
 	}
-	else if(!knockback)
+	else if (!knockback)
 	{
 
 		// Handle being put to sleep (health reaches 0)
@@ -1216,7 +1215,7 @@ bool EnemyAttackComponent::x_distance(int distance)
 		return false;
 	}
 }
-	
+
 
 // Render the ZZZ text if asleep
 void EnemyAttackComponent::render()

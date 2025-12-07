@@ -17,6 +17,7 @@ int main()
 
 	// Load saved settings
 	GameSettings::get_instance().load_from_file();
+	GameSettings::get_instance().apply_audio_settings();
 
 	Scenes::physics = std::make_shared<PhysicsScene>();
 	Scenes::physics->load();

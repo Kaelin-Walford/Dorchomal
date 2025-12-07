@@ -29,6 +29,8 @@ public:
 	bool is_paused() const { return _is_paused; }
 	void set_paused(bool paused) { _is_paused = paused; }
 
+	void set_current_level(const std::string& level_name) { _current_level_name = level_name; }
+	std::string get_current_level() const { return _current_level_name; }
 	//Collision functions
 	void find_which_enemy_to_damage(char* shape_1, char* shape_2);
 	void find_which_enemy_is_in_range(char* visitor_shape, bool in_range);
@@ -46,6 +48,7 @@ private:
 	bool _is_paused = false;
 	std::vector<std::shared_ptr<Entity>> _enemies;
 	int timer = 0;
+	std::string _current_level_name;
 	bool scene_restart;
 
 	//User data for the bodies in the scene

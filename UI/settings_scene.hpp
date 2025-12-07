@@ -31,8 +31,9 @@ public:
 
 private:
     sf::Font _font;
+    sf::Font _number_font;
     SettingsTab _current_tab;
-    std::shared_ptr<Scene> _return_scene;  
+    std::shared_ptr<Scene> _return_scene;
 
     // Background
     sf::RectangleShape _overlay;
@@ -48,8 +49,8 @@ private:
     // Display settings
     std::vector<std::unique_ptr<UIToggle>> _display_toggles;
     std::vector<std::unique_ptr<UIButton>> _display_buttons;
-    sf::Text _resolution_text;
-    sf::Text _fps_limit_text;
+    sf::Text _resolution_label;
+    sf::Text _resolution_value;
 
     // Controls settings
     std::vector<std::unique_ptr<UIButton>> _control_buttons;

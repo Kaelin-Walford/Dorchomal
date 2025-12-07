@@ -8,6 +8,7 @@
 #include "UI/menu_scene.hpp"
 #include "UI/settings_scene.hpp"
 #include "UI/credits_scene.hpp" 
+#include "UI/game_settings.hpp"
 #include "game_parameters.hpp"
 #include "renderer.hpp"
 #include "b2_utils.hpp"
@@ -143,6 +144,7 @@ void PhysicsScene::unload()
 void KaelinsPlayground::load()
 {
 	scene_restart = false;
+	_current_level_name = "Level 1";
 
 
 	sf::Vector2f walls[] = {
@@ -222,7 +224,7 @@ void KaelinsPlayground::update(const float& dt)
 	// Handle escape to pause
 	static bool escPressed = false;
 
-	if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape))
+	if (sf::Keyboard::isKeyPressed(GameSettings::get_instance().key_pause))
 	{
 		if (!escPressed)
 		{
@@ -520,11 +522,13 @@ void KaelinsPlayground::toggle_pause()
 	{
 		if (_is_paused)
 		{
-			Scenes::menuScene->show_pause_menu();
+			Scenes::menuScene->show_pause_menu(_current_level_name);
+			GameSystem::set_active_scene(Scenes::menuScene);
 		}
 		else
 		{
 			Scenes::menuScene->hide_menus();
+			GameSystem::set_active_scene(Scenes::kaelinsPlayground);
 		}
 	}
 }

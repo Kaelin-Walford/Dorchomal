@@ -33,8 +33,6 @@ public:
     int resolution_width = 1920;
     int resolution_height = 1080;
     bool vsync = true;
-    bool show_fps = false;
-    int fps_limit = 60;               // 30, 60, 120, or 0 (unlimited)
 
     // Available resolutions
     struct Resolution {
@@ -74,7 +72,7 @@ public:
     bool invert_mouse_y = false;
 
     // METHODS
-  
+
     // Get key name as string
     static std::string get_key_name(sf::Keyboard::Key key);
 
@@ -82,7 +80,7 @@ public:
     static std::string get_mouse_button_name(sf::Mouse::Button button);
 
     // Apply display settings to window
-    void apply_display_settings(sf::RenderWindow& window);
+    void apply_display_settings();
 
     // Apply audio settings (would connect to audio system)
     void apply_audio_settings();

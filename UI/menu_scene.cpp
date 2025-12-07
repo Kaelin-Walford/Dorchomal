@@ -145,6 +145,7 @@ void MenuScene::create_pause_menu_buttons()
         hide_menus();
         if (Scenes::kaelinsPlayground) {
             Scenes::kaelinsPlayground->set_paused(false);
+            GameSystem::set_active_scene(Scenes::kaelinsPlayground);
         }
         });
     _pause_menu_buttons.push_back(std::move(resumeBtn));
@@ -229,9 +230,19 @@ void MenuScene::show_main_menu()
     _menu_state = MenuState::MAIN_MENU;
 }
 
-void MenuScene::show_pause_menu()
+void MenuScene::show_pause_menu(const std::string& level_name)
 {
     _menu_state = MenuState::PAUSED;
+
+    // Update title to show level name
+    if (!level_name.empty())
+    {
+        _title_text.setString("PAUSED - " + level_name);
+    }
+    else
+    {
+        _title_text.setString("PAUSED");
+    }
 }
 
 void MenuScene::hide_menus()

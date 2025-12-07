@@ -15,6 +15,11 @@ void SettingsScene::load()
         std::cerr << "Failed to load font for settings" << std::endl;
     }
 
+    if (!_number_font.loadFromFile("resources/fonts/CreditCard-26Me.ttf"))
+    {
+        std::cerr << "Failed to load number font for settings" << std::endl;
+    }
+
     // Setup overlay
     _overlay.setSize(sf::Vector2f(param::game_width, param::game_height));
     _overlay.setFillColor(sf::Color(0, 0, 0, 200));
@@ -97,10 +102,11 @@ void SettingsScene::create_audio_controls()
         500.f, 0.f, 100.f,
         settings.master_volume,
         "Master Volume",
-        &_font
+        &_font, &_number_font
     );
     masterVol->set_callback([](float val) {
         GameSettings::get_instance().master_volume = val;
+        GameSettings::get_instance().apply_audio_settings();
         });
     _audio_sliders.push_back(std::move(masterVol));
 
@@ -110,10 +116,11 @@ void SettingsScene::create_audio_controls()
         500.f, 0.f, 100.f,
         settings.music_volume,
         "Music Volume",
-        &_font
+        &_font, &_number_font
     );
     musicVol->set_callback([](float val) {
         GameSettings::get_instance().music_volume = val;
+        GameSettings::get_instance().apply_audio_settings();
         });
     _audio_sliders.push_back(std::move(musicVol));
 
@@ -123,10 +130,11 @@ void SettingsScene::create_audio_controls()
         500.f, 0.f, 100.f,
         settings.sfx_volume,
         "Sound Effects Volume",
-        &_font
+        &_font, &_number_font
     );
     sfxVol->set_callback([](float val) {
         GameSettings::get_instance().sfx_volume = val;
+        GameSettings::get_instance().apply_audio_settings();
         });
     _audio_sliders.push_back(std::move(sfxVol));
 
@@ -139,6 +147,7 @@ void SettingsScene::create_audio_controls()
     );
     audioToggle->set_callback([](bool val) {
         GameSettings::get_instance().audio_enabled = val;
+        GameSettings::get_instance().apply_audio_settings();
         });
     _audio_toggles.push_back(std::move(audioToggle));
 }
@@ -174,26 +183,23 @@ void SettingsScene::create_display_controls()
         });
     _display_toggles.push_back(std::move(vsyncToggle));
 
-    // Show FPS Toggle
-    auto fpsToggle = std::make_unique<UIToggle>(
-        sf::Vector2f(startX, startY + spacing * 2),
-        "Show FPS Counter",
-        settings.show_fps,
-        &_font
-    );
-    fpsToggle->set_callback([](bool val) {
-        GameSettings::get_instance().show_fps = val;
-        });
-    _display_toggles.push_back(std::move(fpsToggle));
 
     // Resolution text
-    _resolution_text.setFont(_font);
-    _resolution_text.setCharacterSize(20);
-    _resolution_text.setFillColor(sf::Color::White);
-    _resolution_text.setPosition(startX, startY + spacing * 3);
-    _resolution_text.setString("Resolution: " +
-        std::to_string(settings.resolution_width) + "x" +
+    // Resolution label
+    _resolution_label.setFont(_font);
+    _resolution_label.setCharacterSize(20);
+    _resolution_label.setFillColor(sf::Color::White);
+    _resolution_label.setPosition(startX, startY + spacing * 3);
+    _resolution_label.setString("Resolution:");
+
+    // Resolution value
+    _resolution_value.setFont(_number_font);
+    _resolution_value.setCharacterSize(20);
+    _resolution_value.setFillColor(sf::Color::White);
+    _resolution_value.setPosition(startX + 120, startY + spacing * 3);
+    _resolution_value.setString(std::to_string(settings.resolution_width) + "x" +
         std::to_string(settings.resolution_height));
+
 
     // Resolution buttons
     auto resolutionBtn = std::make_unique<UIButton>(
@@ -209,38 +215,12 @@ void SettingsScene::create_display_controls()
         auto& res = settings.available_resolutions[settings.current_resolution_index];
         settings.resolution_width = res.width;
         settings.resolution_height = res.height;
-        _resolution_text.setString("Resolution: " +
+        _resolution_value.setString(
             std::to_string(settings.resolution_width) + "x" +
             std::to_string(settings.resolution_height));
         });
     _display_buttons.push_back(std::move(resolutionBtn));
 
-    // FPS Limit text
-    _fps_limit_text.setFont(_font);
-    _fps_limit_text.setCharacterSize(20);
-    _fps_limit_text.setFillColor(sf::Color::White);
-    _fps_limit_text.setPosition(startX, startY + spacing * 4);
-    std::string fpsText = settings.fps_limit == 0 ? "Unlimited" : std::to_string(settings.fps_limit);
-    _fps_limit_text.setString("FPS Limit: " + fpsText);
-
-    // FPS Limit button
-    auto fpsBtn = std::make_unique<UIButton>(
-        sf::Vector2f(startX + 300.f, startY + spacing * 4),
-        sf::Vector2f(200.f, 40.f),
-        "Change",
-        &_font
-    );
-    fpsBtn->set_callback([this]() {
-        auto& settings = GameSettings::get_instance();
-        if (settings.fps_limit == 30) settings.fps_limit = 60;
-        else if (settings.fps_limit == 60) settings.fps_limit = 120;
-        else if (settings.fps_limit == 120) settings.fps_limit = 0;
-        else settings.fps_limit = 30;
-
-        std::string fpsText = settings.fps_limit == 0 ? "Unlimited" : std::to_string(settings.fps_limit);
-        _fps_limit_text.setString("FPS Limit: " + fpsText);
-        });
-    _display_buttons.push_back(std::move(fpsBtn));
 }
 
 void SettingsScene::create_control_controls()
@@ -372,10 +352,17 @@ void SettingsScene::switch_to_tab(SettingsTab tab)
 void SettingsScene::apply_settings()
 {
     auto& settings = GameSettings::get_instance();
+
+    // Apply audio immediately
     settings.apply_audio_settings();
+
+    // Apply display settings immediately
+    settings.apply_display_settings();
+
+    // Save to file
     settings.save_to_file();
+
     std::cout << "Settings applied and saved!" << std::endl;
-    std::cout << "NOTE: Restart game to apply display settings changes." << std::endl;
 }
 
 void SettingsScene::reset_settings()
@@ -426,8 +413,7 @@ void SettingsScene::render()
     }
     else if (_current_tab == SettingsTab::DISPLAY)
     {
-        Renderer::queue(&_resolution_text);
-        Renderer::queue(&_fps_limit_text);
+        Renderer::queue(&_resolution_label); Renderer::queue(&_resolution_value);
     }
     else if (_current_tab == SettingsTab::CONTROLS)
     {
@@ -477,6 +463,8 @@ void SettingsScene::render_ui(sf::RenderWindow& window)
             btn->update(mousePos);
             btn->render(window);
         }
+        window.draw(_resolution_label);
+        window.draw(_resolution_value);
     }
     else if (_current_tab == SettingsTab::CONTROLS)
     {
@@ -494,6 +482,11 @@ void SettingsScene::render_ui(sf::RenderWindow& window)
         {
             btn->update(mousePos);
             btn->render(window);
+        }
+        for (int i = 0; i < 9; i++)
+        {
+            window.draw(_keybind_labels[i]);
+            window.draw(_keybind_values[i]);
         }
     }
 

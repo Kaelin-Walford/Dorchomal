@@ -5,7 +5,7 @@
 
 UISlider::UISlider(const sf::Vector2f& position, float width,
     float min_value, float max_value, float current_value,
-    const std::string& label, sf::Font* font)
+    const std::string& label, sf::Font* font, sf::Font* number_font)
     : _position(position), _width(width), _min_value(min_value),
     _max_value(max_value), _current_value(current_value),
     _is_dragging(false), _is_hovered(false)
@@ -36,8 +36,8 @@ UISlider::UISlider(const sf::Vector2f& position, float width,
     _label_text.setFillColor(sf::Color::White);
     _label_text.setPosition(position.x, position.y);
 
-    // Setup value text
-    _value_text.setFont(*font);
+    // Setup value text (use number font if provided)
+    _value_text.setFont(number_font ? *number_font : *font);
     _value_text.setCharacterSize(18);
     _value_text.setFillColor(sf::Color(200, 200, 200));
 

@@ -21,7 +21,7 @@ public:
     void unload() override;
 
     void show_main_menu();
-    void show_pause_menu();
+    void show_pause_menu(const std::string& level_name = "");
     void hide_menus();
 
     MenuState get_state() const { return _menu_state; }
