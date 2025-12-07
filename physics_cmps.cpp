@@ -13,7 +13,7 @@
 #include "UI/game_settings.hpp"
 using param = Parameters;
 using ph = Physics;
-//using ls = LevelSystem;
+using ls = LevelSystem;
 
 
 /*
@@ -29,7 +29,7 @@ PlatformComponent::PlatformComponent(Entity* p, const std::vector<sf::Vector2i>&
 	body_def.type = b2_staticBody;
 	//Create the body
 	_body_id = b2CreateBody(ph::get_world_id(), &body_def);
-	//_create_chain_shape(tile_group);
+	_create_chain_shape(tile_group);
 }
 void PlatformComponent::update(const float& dt) {}
 void PlatformComponent::render() {}
@@ -43,65 +43,64 @@ PlatformComponent::~PlatformComponent()
 	_body_id = b2_nullBodyId;
 }
 
-//This is commented out as it requires the level_system.cpp
-/*
-void PlatformComponent::_create_chain_shape(const std::vector<sf::Vector2i> &tile_group){
+
+void PlatformComponent::_create_chain_shape(const std::vector<sf::Vector2i>& tile_group) {
 	std::vector<b2Vec2> points;
-	for(int i = 0; i < tile_group.size(); i++){
-		const sf::Vector2i &tile = tile_group[i];
+	for (int i = 0; i < tile_group.size(); i++) {
+		const sf::Vector2i& tile = tile_group[i];
 		std::vector<ls::Tile> neighbors = {
-			ls::in_group({tile.x-1,tile.y-1},tile_group) ? ls::get_tile({tile.x-1,tile.y-1}) : ls::EMPTY,
-			ls::in_group({tile.x,tile.y-1},tile_group) ? ls::get_tile({tile.x,tile.y-1}) : ls::EMPTY,
-			ls::in_group({tile.x+1,tile.y-1},tile_group) ? ls::get_tile({tile.x+1,tile.y-1}) : ls::EMPTY,
-			ls::in_group({tile.x+1,tile.y},tile_group) ? ls::get_tile({tile.x+1,tile.y}) : ls::EMPTY,
-			ls::in_group({tile.x+1,tile.y+1},tile_group) ? ls::get_tile({tile.x+1,tile.y+1}) : ls::EMPTY,
-			ls::in_group({tile.x,tile.y+1},tile_group) ? ls::get_tile({tile.x,tile.y+1}) : ls::EMPTY,
-			ls::in_group({tile.x-1,tile.y+1},tile_group) ? ls::get_tile({tile.x-1,tile.y+1}) : ls::EMPTY,
-			ls::in_group({tile.x-1,tile.y},tile_group) ? ls::get_tile({tile.x-1,tile.y}) : ls::EMPTY
+			ls::in_group({tile.x - 1,tile.y - 1},tile_group) ? ls::get_tile(sf::Vector2i(tile.x - 1,tile.y - 1)) : ls::EMPTY,
+			ls::in_group({tile.x,tile.y - 1},tile_group) ? ls::get_tile(sf::Vector2i(tile.x,tile.y - 1)) : ls::EMPTY,
+			ls::in_group({tile.x + 1,tile.y - 1},tile_group) ? ls::get_tile(sf::Vector2i(tile.x + 1,tile.y - 1)) : ls::EMPTY,
+			ls::in_group({tile.x + 1,tile.y},tile_group) ? ls::get_tile(sf::Vector2i(tile.x + 1,tile.y)) : ls::EMPTY,
+			ls::in_group({tile.x + 1,tile.y + 1},tile_group) ? ls::get_tile(sf::Vector2i(tile.x + 1,tile.y + 1)) : ls::EMPTY,
+			ls::in_group({tile.x,tile.y + 1},tile_group) ? ls::get_tile(sf::Vector2i(tile.x,tile.y + 1)) : ls::EMPTY,
+			ls::in_group({tile.x - 1,tile.y + 1},tile_group) ? ls::get_tile(sf::Vector2i(tile.x - 1,tile.y + 1)) : ls::EMPTY,
+			ls::in_group({tile.x - 1,tile.y},tile_group) ? ls::get_tile(sf::Vector2i(tile.x - 1,tile.y)) : ls::EMPTY
 		};
 		sf::Vector2f pos = ls::get_tile_position(tile);
 
 		std::vector<sf::Vector2f> pts;
-		if(neighbors[0] == ls::EMPTY || neighbors[1] == ls::EMPTY || neighbors[7] == ls::EMPTY)
+		if (neighbors[0] == ls::EMPTY || neighbors[1] == ls::EMPTY || neighbors[7] == ls::EMPTY)
 			pts.push_back(pos);
-		if(neighbors[1] == ls::EMPTY || neighbors[2] == ls::EMPTY || neighbors[3] == ls::EMPTY)
-			pts.push_back({pos.x+param::tile_size,pos.y});
-		if(neighbors[3] == ls::EMPTY || neighbors[4] == ls::EMPTY || neighbors[5] == ls::EMPTY)
-			pts.push_back({pos.x+param::tile_size,pos.y+param::tile_size});
-		if(neighbors[5] == ls::EMPTY || neighbors[6] == ls::EMPTY || neighbors[7] == ls::EMPTY)
-			pts.push_back({pos.x,pos.y+param::tile_size});
+		if (neighbors[1] == ls::EMPTY || neighbors[2] == ls::EMPTY || neighbors[3] == ls::EMPTY)
+			pts.push_back({ pos.x + param::tile_size,pos.y });
+		if (neighbors[3] == ls::EMPTY || neighbors[4] == ls::EMPTY || neighbors[5] == ls::EMPTY)
+			pts.push_back({ pos.x + param::tile_size,pos.y + param::tile_size });
+		if (neighbors[5] == ls::EMPTY || neighbors[6] == ls::EMPTY || neighbors[7] == ls::EMPTY)
+			pts.push_back({ pos.x,pos.y + param::tile_size });
 
-		for(const sf::Vector2f &pt: pts){
-			b2Vec2 point = ph::sv2_to_bv2(ph::invert_height(pt,param::game_height));
+		for (const sf::Vector2f& pt : pts) {
+			b2Vec2 point = ph::sv2_to_bv2(ph::invert_height(pt, param::game_height));
 			bool already_in = false;
-			for(const b2Vec2 &p : points){
-				if(p.x == point.x && p.y == point.y){
+			for (const b2Vec2& p : points) {
+				if (p.x == point.x && p.y == point.y) {
 					already_in = true;
 					break;
 				}
 			}
-			if(!already_in)
+			if (!already_in)
 				points.push_back(point);
 		}
 	}
-	b2Vec2 centroid = {0,0};
-	for(const b2Vec2 pt: points){
+	b2Vec2 centroid = { 0,0 };
+	for (const b2Vec2 pt : points) {
 		centroid.x += pt.x;
 		centroid.y += pt.y;
 	}
 	centroid.x /= static_cast<float>(points.size());
 	centroid.y /= static_cast<float>(points.size());
 	//order the list of points in counter clockwise.
-	std::sort(points.begin(),points.end(),[&](b2Vec2 a, b2Vec2 b){
-		a = {a.x-centroid.x,a.y-centroid.y};
-		b = {b.x-centroid.x,b.y-centroid.y};
-		float angle1 = std::atan2(a.x,a.y);
-		float angle2 = std::atan2(b.x,b.y);
-		if(angle1==angle2)
-			return std::sqrt(a.x*a.x+a.y*a.y)>std::sqrt(b.x*b.x+b.y*b.y);
+	std::sort(points.begin(), points.end(), [&](b2Vec2 a, b2Vec2 b) {
+		a = { a.x - centroid.x,a.y - centroid.y };
+		b = { b.x - centroid.x,b.y - centroid.y };
+		float angle1 = std::atan2(a.x, a.y);
+		float angle2 = std::atan2(b.x, b.y);
+		if (angle1 == angle2)
+			return std::sqrt(a.x * a.x + a.y * a.y) > std::sqrt(b.x * b.x + b.y * b.y);
 		else
-			return angle1>angle2;
-	});
+			return angle1 > angle2;
+		});
 	points.push_back(points.front());
 
 	b2SurfaceMaterial material = b2DefaultSurfaceMaterial();
@@ -113,11 +112,11 @@ void PlatformComponent::_create_chain_shape(const std::vector<sf::Vector2i> &til
 	chain_def.isLoop = true;
 	chain_def.materials = &material;
 	chain_def.materialCount = 1;
-	_chain_id = b2CreateChain(_body_id,&chain_def);
+	_chain_id = b2CreateChain(_body_id, &chain_def);
 	std::vector<b2ShapeId> shape_ids(points.size());
-	int nbr_seg = b2Chain_GetSegments(_chain_id,shape_ids.data(),points.size());
+	int nbr_seg = b2Chain_GetSegments(_chain_id, shape_ids.data(), points.size());
 	shape_ids.size();
-}*/
+}
 
 /*
 *	Physics Component
@@ -755,7 +754,7 @@ void PlayerPhysicsComponent::update(const float& dt)
 	}
 
 
-	//Delete fireballs
+	/*Delete fireballs
 	for (auto& entity : get_entities())
 	{
 		auto components = entity->get_components<FireballComponent>();
@@ -766,7 +765,20 @@ void PlayerPhysicsComponent::update(const float& dt)
 				entity->set_for_delete();
 			}
 		}
-	}
+	}*/
+	
+	/*if (get_entities().size() >0) {
+	std::cout << get_entities().size() << "\n";
+		for (int i = 0; i < get_entities().size(); i++)
+		{
+			if (get_entities()[i]->get_components<FireballComponent>()[0]->is_for_deletion())
+			{
+				get_entities()[i]->set_for_delete();
+				get_entities()[i].reset();
+				get_entities().erase(get_entities().begin() + i);
+			}
+		}
+	}*/
 
 
 

@@ -60,7 +60,7 @@ void MenuScene::create_main_menu_buttons()
     startBtn->set_callback([this]() {
         std::cout << "Starting game..." << std::endl;
         _menu_state = MenuState::PLAYING;
-        GameSystem::set_active_scene(Scenes::kaelinsPlayground);
+        GameSystem::set_active_scene(Scenes::levels);
         });
     _main_menu_buttons.push_back(std::move(startBtn));
 
@@ -143,9 +143,9 @@ void MenuScene::create_pause_menu_buttons()
         std::cout << "Resuming game..." << std::endl;
         _menu_state = MenuState::PLAYING;
         hide_menus();
-        if (Scenes::kaelinsPlayground) {
-            Scenes::kaelinsPlayground->set_paused(false);
-            GameSystem::set_active_scene(Scenes::kaelinsPlayground);
+        if (Scenes::levels) {
+            Scenes::levels->set_paused(false);
+            GameSystem::set_active_scene(Scenes::levels);
         }
         });
     _pause_menu_buttons.push_back(std::move(resumeBtn));
@@ -159,11 +159,11 @@ void MenuScene::create_pause_menu_buttons()
     );
     restartBtn->set_callback([this]() {
         std::cout << "Restarting level..." << std::endl;
-        Scenes::kaelinsPlayground->unload();
-        Scenes::kaelinsPlayground->load();
+        Scenes::levels->unload();
+        Scenes::levels->load();
         _menu_state = MenuState::PLAYING;
-        if (Scenes::kaelinsPlayground) {
-            Scenes::kaelinsPlayground->set_paused(false);
+        if (Scenes::levels) {
+            Scenes::levels->set_paused(false);
         }
         });
     _pause_menu_buttons.push_back(std::move(restartBtn));
@@ -300,8 +300,8 @@ void MenuScene::handle_event(const sf::Event& event, sf::RenderWindow& window)
 
         if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Escape)
         {
-            if (Scenes::kaelinsPlayground) {
-                Scenes::kaelinsPlayground->toggle_pause();
+            if (Scenes::levels) {
+                Scenes::levels->toggle_pause();
             }
         }
     }

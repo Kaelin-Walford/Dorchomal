@@ -22,7 +22,7 @@ protected:
 	b2ChainId _chain_id;
 	float _friction;
 	float _restitution;
-	//void _create_chain_shape(const std::vector<sf::Vector2i> &tile_group);
+	void _create_chain_shape(const std::vector<sf::Vector2i> &tile_group);
 };
 
 //The physics component is the main class that the player and enemy classes will inherit from
@@ -75,6 +75,7 @@ public:
 	bool facing_right;
 
 	bool knockback;
+
 
 	~PhysicsComponent() override;
 protected:

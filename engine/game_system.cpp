@@ -91,7 +91,7 @@ void GameSystem::start(unsigned int width, unsigned int height,
 			}
 
 			//If the _active_scene is the game level so to hide the mouse pointer
-			if (_active_scene == Scenes::kaelinsPlayground)
+			if (_active_scene == Scenes::levels)
 			{
 				change_mouse_visibility(false, &window);
 				if (AudioSystem::is_music_playing() != sf::SoundSource::Status::Playing)

@@ -2,24 +2,9 @@
 #include "engine/game_system.hpp"
 #include <box2d/box2d.h>
 
-class PhysicsScene : public Scene
-{
-private:
-	b2WorldId world_id;
-	std::vector<b2BodyId> bodies;
-	std::vector<std::shared_ptr<sf::RectangleShape>> sprites;
+class LevelScenes : public Scene {
 public:
-	PhysicsScene() = default;
-	void update(const float& dt) override;
-	void render() override;
-	void load()override;
-	void unload() override;
-};
-
-class KaelinsPlayground : public Scene
-{
-public:
-	KaelinsPlayground() = default;
+	LevelScenes() = default;
 	void update(const float& dt) override;
 	void render() override;
 	void load()override;
@@ -45,6 +30,8 @@ private:
 	std::vector<b2BodyId> bodies;
 	std::vector<std::shared_ptr<sf::RectangleShape>> sprites;
 	std::shared_ptr<Entity> _player;
+	std::vector<std::shared_ptr<Entity>> _walls;
+	void _load_level(const std::string& file_path);
 	bool _is_paused = false;
 	std::vector<std::shared_ptr<Entity>> _enemies;
 	int timer = 0;
@@ -64,8 +51,8 @@ class CreditsScene;
 struct Scenes
 {
 	static std::shared_ptr<Scene> physics;
-	static std::shared_ptr<KaelinsPlayground> kaelinsPlayground;
 	static std::shared_ptr<MenuScene> menuScene;
 	static std::shared_ptr<SettingsScene> settingsScene;
 	static std::shared_ptr<CreditsScene> creditsScene;
+	static std::shared_ptr<LevelScenes> levels;
 };

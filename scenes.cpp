@@ -20,176 +20,67 @@
 //remove
 #include "ecm.hpp"
 
+using ls = LevelSystem;
 using param = Parameters;
+using gs = GameSystem;
 namespace b2 = box2d;
 
-//std::vector<sf::SoundBuffer> AudioSystem::_sound_buffers;
-//std::vector<sf::Sound> AudioSystem::_sounds;
-//sf::Music AudioSystem::_music;
-
-std::shared_ptr<Scene> Scenes::physics;
-std::shared_ptr<KaelinsPlayground> Scenes::kaelinsPlayground;
 std::shared_ptr<MenuScene> Scenes::menuScene;
 std::shared_ptr<SettingsScene> Scenes::settingsScene;
 std::shared_ptr<CreditsScene> Scenes::creditsScene;
+std::shared_ptr<LevelScenes> Scenes::levels;
 
-//Load the physics scene, which is a scene that has cubes fall from the sky
-void PhysicsScene::load()
-{
-	//creates the box2D world
-	b2WorldDef world_def = b2DefaultWorldDef();
-	//sets the gravity for the world
-	world_def.gravity = b2Vec2({ 0.0f, param::g });
-	//identifies the physics simulation
-	world_id = b2CreateWorld(&world_def);
+bool loadLevel2 = false;
+bool loadLevel3 = false;
 
-
-	// Create Boxes
-	for (int i = 1; i < 11; ++i)
-	{
-		// Create SFML shapes for each box
-		std::shared_ptr<sf::RectangleShape> s = std::make_shared<sf::RectangleShape>();
-		s->setPosition(sf::Vector2f(i * (param::game_width / 12.f), param::game_height * .7f));
-		s->setSize(sf::Vector2f(50.0f, 50.0f));
-		s->setOrigin(sf::Vector2f(25.0f, 25.0f));
-		s->setFillColor(sf::Color::White);
-		sprites.push_back(s);
-
-		// Create a dynamic physics body for the box
-		b2BodyId b = b2::create_physics_box(world_id, true, s);
-		// Give the box a spin
-		b2Body_ApplyAngularImpulse(b, 5.0f, true);
-		bodies.push_back(b);
+//level loader
+void LevelScenes::load() {
+	if (loadLevel2 == false && loadLevel3 == false) {
+		unload();
+		_load_level(param::level_1);
+		_current_level_name = "Level 1";
 	}
-
-	sf::Vector2f walls[] = {
-		// Top
-		sf::Vector2f(param::game_width * .5f, 5.f), sf::Vector2f(param::game_width, 10.f),
-		// Bottom
-		sf::Vector2f(param::game_width * .5f, param::game_height - 5.f), sf::Vector2f(param::game_width, 10.f),
-		// left
-		sf::Vector2f(5.f, param::game_height * .5f), sf::Vector2f(10.f, param::game_height),
-		// right
-		sf::Vector2f(param::game_width - 5.f, param::game_height * .5f), sf::Vector2f(10.f, param::game_height)
-	};
-
-	// Build Walls
-	for (int i = 0; i < 7; i += 2)
-	{
-		// Create SFML shapes for each wall
-		std::shared_ptr<sf::RectangleShape> s = std::make_shared<sf::RectangleShape>();
-		s->setPosition(walls[i]);
-		s->setSize(walls[i + 1]);
-		s->setOrigin(walls[i + 1] / 2.f);
-		s->setFillColor(sf::Color::White);
-		sprites.push_back(s);
-
-		// Create a static physics body for the wall
-		b2BodyId b = b2::create_physics_box(world_id, false, s);
-		bodies.push_back(b);
+	else if (loadLevel2 == true && loadLevel3 == false) {
+		unload();
+		_load_level(param::level_2);
+		_current_level_name = "Level 2";
 	}
-
-	//AudioSystem::add_sound_to_queue();
-
-}
-
-//The update function for the physics scene
-void PhysicsScene::update(const float& dt)
-{
-	// Step Physics world by time_step
-	b2World_Step(world_id, param::time_step, param::sub_step_count);
-
-	for (int i = 0; i < bodies.size(); ++i)
-	{
-		// Sync Sprites to physics position
-		sprites[i]->setPosition(b2::invert_height(b2::bv2_to_sv2(b2Body_GetPosition(bodies[i]))));
-		// Sync Sprites to physics Rotation
-		sprites[i]->setRotation((180 / M_PI) * asin(b2Body_GetRotation(bodies[i]).s));
+	else if (loadLevel2 == true && loadLevel3 == true) {
+		unload();
+		_load_level(param::level_3);
+		_current_level_name = "Level 3";
 	}
 }
 
-//Adds the physics scene to the renderer queue
-void PhysicsScene::render()
-{
-	for (std::shared_ptr<sf::RectangleShape> sprite : sprites)
-	{
-		Renderer::queue(sprite.get());
-	}
+void LevelScenes::_load_level(const std::string& file_path) {
+	ls::load_level(file_path, param::tile_size);
 
-}
-
-//clears the scene
-void PhysicsScene::unload()
-{
-	for (std::shared_ptr<sf::RectangleShape>& shape : sprites)
-	{
-		shape.reset();
-	}
-	sprites.clear();
-
-	for (b2BodyId body : bodies)
-	{
-		b2DestroyBody(body);
-	}
-	bodies.clear();
-	b2DestroyWorld(world_id);
-}
-
-/*
-* Kaelins Playground Scene
-* This is just a testing scene for all my components
-*/
-
-//Loads the Playground scene
-void KaelinsPlayground::load()
-{
-	scene_restart = false;
-	_current_level_name = "Level 1";
-
-
-	sf::Vector2f walls[] = {
-		// Top
-		sf::Vector2f(param::game_width * .5f, 5.f), sf::Vector2f(param::game_width, 10.f),
-		// Bottom
-		sf::Vector2f(param::game_width * .5f, param::game_height - 5.f), sf::Vector2f(param::game_width, 10.f),
-		// left
-		sf::Vector2f(5.f, param::game_height * .5f), sf::Vector2f(10.f, param::game_height),
-		// right
-		sf::Vector2f(param::game_width - 5.f, param::game_height * .5f), sf::Vector2f(10.f, param::game_height)
-	};
-
-
-	// Build Walls
-	for (int i = 0; i < 7; i += 2)
-	{
-		// Create SFML shapes for each wall
-		std::shared_ptr<sf::RectangleShape> s = std::make_shared<sf::RectangleShape>();
-		s->setPosition(walls[i]);
-		s->setSize(walls[i + 1]);
-		s->setOrigin(walls[i + 1] / 2.f);
-		s->setFillColor(sf::Color::White);
-		sprites.push_back(s);
-
-		// Create a static physics body for the wall
-		b2BodyId b = testSceneBox2D::create_physics_box(Physics::get_world_id(), false, s);
-		bodies.push_back(b);
-	}
-
-	//Create the player
 	_player = make_entity();
-	_player->set_position(sf::Vector2f(100.0f, 100.0f));
+	_player->set_position(ls::get_start_position());
 
-	std::shared_ptr<ShapeComponent> shape = _player->add_component<ShapeComponent>();
-	shape->set_shape<sf::RectangleShape>(sf::Vector2f(param::player_size[0], param::player_size[1]));
-	shape->get_shape().setFillColor(sf::Color::Yellow);
-	shape->get_shape().setOrigin(sf::Vector2f(param::player_size[0] / 2.f, param::player_size[1] / 2.f));
+	std::shared_ptr<sf::Texture> _playerTexture = std::make_shared<sf::Texture>();
+	if (!_playerTexture->loadFromFile("../../../../resources/textures/practice_sprite_witchgirl.png", sf::IntRect({ 0, 0 }, { 16, 16 }))) {
+		std::cerr << "LOAD PLAYER SPRITE ERROR" << std::endl;
+	}
 
-	std::shared_ptr<PlayerPhysicsComponent> cmp = _player->add_component<PlayerPhysicsComponent>(sf::Vector2f(param::player_size[0], param::player_size[1]));
-	cmp->create_capsule_shape(sf::Vector2f(param::player_size[0], param::player_size[1]), param::player_weight, param::player_friction, param::player_restitution, -1, "Player");
+	std::shared_ptr<SpriteComponent> playerSprite = _player->add_component<SpriteComponent>();
+	playerSprite->set_texure(_playerTexture);
+	playerSprite->get_sprite().setOrigin(sf::Vector2f(8, 8));
+	playerSprite->get_sprite().setScale(sf::Vector2f(param::player_size[0] / 16, param::player_size[1] / 16));
+
+	// Adds PlayerPhysicsComponent so player can collide with terrain
+	std::shared_ptr<PlayerPhysicsComponent> playerPhysics = _player->add_component<PlayerPhysicsComponent>(sf::Vector2f(param::player_size[0], param::player_size[1]));
+	playerPhysics->create_capsule_shape(sf::Vector2f(param::player_size[0], param::player_size[1]), param::player_weight, param::player_friction, param::player_restitution, -1, "Player");
+
+	std::vector<std::vector<sf::Vector2i>> wall_groups = ls::get_groups(ls::WALL);
+	for (const std::vector<sf::Vector2i>& walls : wall_groups) {
+		_walls.push_back(make_entity());
+		_walls.back()->add_component<PlatformComponent>(walls);
+	}
 
 	//Create an enemy
 	std::shared_ptr<Entity> _enemy = make_entity();
-	_enemy->set_position(sf::Vector2f(1800, 900));
+	_enemy->set_position(sf::Vector2f(1800, 700));
 
 	std::shared_ptr<ShapeComponent> shapew = _enemy->add_component<ShapeComponent>();
 	shapew->set_shape<sf::RectangleShape>(sf::Vector2f(param::enemy_size[0], param::enemy_size[1]));
@@ -202,7 +93,7 @@ void KaelinsPlayground::load()
 	//test
 	//Create an enemy
 	std::shared_ptr<Entity> _test = make_entity();
-	_test->set_position(sf::Vector2f(1000, 900));
+	_test->set_position(sf::Vector2f(1000, 600));
 
 	std::shared_ptr<ShapeComponent> shapet = _test->add_component<ShapeComponent>();
 	shapet->set_shape<sf::RectangleShape>(sf::Vector2f(param::enemy_size[0], param::enemy_size[1]));
@@ -212,15 +103,33 @@ void KaelinsPlayground::load()
 	std::shared_ptr<EnemyAttackComponent> tcmp = _test->add_component<EnemyAttackComponent>(_player.get(), sf::Vector2f(param::player_size[0], param::player_size[1]), 3);
 	tcmp->create_capsule_shape(sf::Vector2f(param::player_size[0], param::player_size[1]), param::player_weight, param::player_friction, param::player_restitution, -2, "2");
 
-	player_user_data = cmp->get_user_data();
+	player_user_data = playerPhysics->get_user_data();
 	enemy_user_data = ecmp->get_user_data();
 
 	_enemies.push_back(_enemy);
 	_enemies.push_back(_test);
 }
 
-void KaelinsPlayground::update(const float& dt)
-{
+void LevelScenes::update(const float& dt) {
+	Scene::update(dt);
+	_entities.update(dt);
+	if (ls::get_tile_at(_player->get_position()) == ls::END && loadLevel2 == false && loadLevel3 == false) {
+		unload();
+		_load_level(param::level_2);
+		loadLevel2 = true;
+	}
+	else if (ls::get_tile_at(_player->get_position()) == ls::END && loadLevel2 == true && loadLevel3 == false) {
+		unload();
+		_load_level(param::level_3);
+		loadLevel3 = true;
+		std::cerr << loadLevel2 << std::endl;
+		std::cerr << loadLevel3 << std::endl;
+	}
+	else if (ls::get_tile_at(_player->get_position()) == ls::END && loadLevel2 == true && loadLevel3 == true) {
+		unload();
+		Scenes::creditsScene;
+	}
+
 	// Handle escape to pause
 	static bool escPressed = false;
 
@@ -237,7 +146,6 @@ void KaelinsPlayground::update(const float& dt)
 		escPressed = false;
 	}
 
-
 	// Only update game if not paused
 	if (!_is_paused)
 	{
@@ -246,6 +154,8 @@ void KaelinsPlayground::update(const float& dt)
 		{
 			unload();
 			load();
+			std::cerr << "SCENE RESTARTED" << std::endl;
+			scene_restart = false;
 		}
 		else
 		{
@@ -298,6 +208,7 @@ void KaelinsPlayground::update(const float& dt)
 					{
 						//reduce health
 						player[0]->reduce_health(1);
+						std::cerr << "PLAYER HURT" << std::endl;
 					}
 				}
 			}
@@ -403,6 +314,7 @@ void KaelinsPlayground::update(const float& dt)
 			//If the player dies
 			if (player[0]->get_health() <= 0)
 			{
+				std::cerr << "PLAYER HEALTH 0" << std::endl;
 				scene_restart = true;
 			}
 
@@ -412,7 +324,7 @@ void KaelinsPlayground::update(const float& dt)
 }
 
 //Function to see which enemy was hit 
-void KaelinsPlayground::find_which_enemy_to_damage(char* shape_1, char* shape_2)
+void LevelScenes::find_which_enemy_to_damage(char* shape_1, char* shape_2)
 {
 	for (int i = 0; i < _enemies.size(); i++)
 	{
@@ -425,20 +337,19 @@ void KaelinsPlayground::find_which_enemy_to_damage(char* shape_1, char* shape_2)
 }
 
 //function to find which enemies are in range
-void KaelinsPlayground::find_which_enemy_is_in_range(char* visitor_shape, bool in_range)
+void LevelScenes::find_which_enemy_is_in_range(char* visitor_shape, bool in_range)
 {
 	for (int i = 0; i < _enemies.size(); i++)
 	{
 		if (!strcmp(visitor_shape, (char*)_enemies[i]->get_components<EnemyAttackComponent>()[0]->get_shape_user_data()))
 		{
 			_enemies[i]->get_components<EnemyAttackComponent>()[0]->player_in_range = in_range;
-
 		}
 	}
 }
 
 //Function to find which enemy has the player in range
-void KaelinsPlayground::find_which_enemy_has_the_player_in_range(b2ShapeId sensor_shapes[], bool in_range)
+void LevelScenes::find_which_enemy_has_the_player_in_range(b2ShapeId sensor_shapes[], bool in_range)
 {
 	for (int i = 0; i < _enemies.size(); i++)
 	{
@@ -453,10 +364,9 @@ void KaelinsPlayground::find_which_enemy_has_the_player_in_range(b2ShapeId senso
 }
 
 //Function to damage the enemy
-void KaelinsPlayground::defeat_enemy(int which_enemy)
+void LevelScenes::defeat_enemy(int which_enemy)
 {
 	auto enemy = _enemies[which_enemy]->get_components<EnemyAttackComponent>()[0];
-	//enemy->reduce_health(damage);
 
 	if (enemy->defeated == true)
 	{
@@ -467,7 +377,7 @@ void KaelinsPlayground::defeat_enemy(int which_enemy)
 }
 
 //Function to knockback the player
-void KaelinsPlayground::player_knockback(int enemy)
+void LevelScenes::player_knockback(int enemy)
 {
 	auto player = _player->get_components<PlayerPhysicsComponent>()[0];
 	player->knockback = true;
@@ -483,7 +393,7 @@ void KaelinsPlayground::player_knockback(int enemy)
 }
 
 //Function to knockback the enemy provided
-void KaelinsPlayground::enemy_knockback(int index)
+void LevelScenes::enemy_knockback(int index)
 {
 	auto enemy = _enemies[index]->get_components<EnemyAttackComponent>()[0];
 	enemy->knockback = true;
@@ -498,15 +408,15 @@ void KaelinsPlayground::enemy_knockback(int index)
 	}
 }
 
-void KaelinsPlayground::render()
-{
+void LevelScenes::render() {
+	ls::render(Renderer::get_window());
+	Scene::render();
+	_entities.render();
+
 	for (std::shared_ptr<sf::RectangleShape> sprite : sprites)
 	{
 		Renderer::queue(sprite.get());
 	}
-
-	Scene::render();
-	_entities.render();
 
 	if (_is_paused && Scenes::menuScene)
 	{
@@ -514,7 +424,7 @@ void KaelinsPlayground::render()
 	}
 }
 
-void KaelinsPlayground::toggle_pause()
+void LevelScenes::toggle_pause()
 {
 	_is_paused = !_is_paused;
 
@@ -528,14 +438,14 @@ void KaelinsPlayground::toggle_pause()
 		else
 		{
 			Scenes::menuScene->hide_menus();
-			GameSystem::set_active_scene(Scenes::kaelinsPlayground);
+			GameSystem::set_active_scene(Scenes::levels);
 		}
 	}
 }
 
-void KaelinsPlayground::unload()
-{
+void LevelScenes::unload() {
 	Scene::unload();
 	_enemies.clear();
 	_player.reset();
+	_walls.clear();
 }
