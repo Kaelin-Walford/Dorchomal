@@ -8,6 +8,7 @@
 #include "UI/menu_scene.hpp"
 #include "UI/settings_scene.hpp"
 #include "UI/credits_scene.hpp" 
+#include "UI/game_settings.hpp"
 #include "game_parameters.hpp"
 #include "renderer.hpp"
 #include "b2_utils.hpp"
@@ -24,39 +25,35 @@ using param = Parameters;
 using gs = GameSystem;
 namespace b2 = box2d;
 
-//std::vector<sf::SoundBuffer> AudioSystem::_sound_buffers;
-//std::vector<sf::Sound> AudioSystem::_sounds;
-//sf::Music AudioSystem::_music;
-
 std::shared_ptr<MenuScene> Scenes::menuScene;
 std::shared_ptr<SettingsScene> Scenes::settingsScene;
 std::shared_ptr<CreditsScene> Scenes::creditsScene;
 std::shared_ptr<LevelScenes> Scenes::levels;
-
 
 bool loadLevel2 = false;
 bool loadLevel3 = false;
 
 //level loader
 void LevelScenes::load() {
-	//_load_level(param::level_1);
 	if (loadLevel2 == false && loadLevel3 == false) {
 		unload();
 		_load_level(param::level_1);
+		_current_level_name = "Level 1";
 	}
 	else if (loadLevel2 == true && loadLevel3 == false) {
 		unload();
 		_load_level(param::level_2);
+		_current_level_name = "Level 2";
 	}
 	else if (loadLevel2 == true && loadLevel3 == true) {
 		unload();
 		_load_level(param::level_3);
+		_current_level_name = "Level 3";
 	}
 }
 
 void LevelScenes::_load_level(const std::string& file_path) {
 	ls::load_level(file_path, param::tile_size);
-
 
 	_player = make_entity();
 	_player->set_position(ls::get_start_position());
@@ -136,7 +133,7 @@ void LevelScenes::update(const float& dt) {
 	// Handle escape to pause
 	static bool escPressed = false;
 
-	if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape))
+	if (sf::Keyboard::isKeyPressed(GameSettings::get_instance().key_pause))
 	{
 		if (!escPressed)
 		{
@@ -148,7 +145,6 @@ void LevelScenes::update(const float& dt) {
 	{
 		escPressed = false;
 	}
-
 
 	// Only update game if not paused
 	if (!_is_paused)
@@ -348,7 +344,6 @@ void LevelScenes::find_which_enemy_is_in_range(char* visitor_shape, bool in_rang
 		if (!strcmp(visitor_shape, (char*)_enemies[i]->get_components<EnemyAttackComponent>()[0]->get_shape_user_data()))
 		{
 			_enemies[i]->get_components<EnemyAttackComponent>()[0]->player_in_range = in_range;
-
 		}
 	}
 }
@@ -372,7 +367,6 @@ void LevelScenes::find_which_enemy_has_the_player_in_range(b2ShapeId sensor_shap
 void LevelScenes::defeat_enemy(int which_enemy)
 {
 	auto enemy = _enemies[which_enemy]->get_components<EnemyAttackComponent>()[0];
-	//enemy->reduce_health(damage);
 
 	if (enemy->defeated == true)
 	{
@@ -438,11 +432,13 @@ void LevelScenes::toggle_pause()
 	{
 		if (_is_paused)
 		{
-			Scenes::menuScene->show_pause_menu();
+			Scenes::menuScene->show_pause_menu(_current_level_name);
+			GameSystem::set_active_scene(Scenes::menuScene);
 		}
 		else
 		{
 			Scenes::menuScene->hide_menus();
+			GameSystem::set_active_scene(Scenes::levels);
 		}
 	}
 }

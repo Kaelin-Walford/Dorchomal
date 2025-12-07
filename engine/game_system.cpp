@@ -8,6 +8,7 @@
 #include "audio_system.hpp"
 
 std::shared_ptr<Scene> GameSystem::_active_scene;
+sf::RenderWindow* GameSystem::_window = nullptr;
 bool GameSystem::_physics_enabled;
 sf::Vector2i GameSystem::_mouse_position;
 
@@ -16,16 +17,17 @@ void GameSystem::start(unsigned int width, unsigned int height,
 {
 	_physics_enabled = physics_enabled;
 	sf::RenderWindow window(sf::VideoMode({ width, height }), name);
+	_window = &window;
 	_init();
 	Renderer::initialise(window);
-	
+
 	sf::Event event;
 
 	int timer = 0;
 
 	AudioSystem::load_music("The tomb of the last dragon.ogg");
 
-	
+
 	AudioSystem tem;
 	tem.add_sound("dash.wav");
 	//tem.play_sound();
@@ -167,12 +169,25 @@ void GameSystem::clean()
 void GameSystem::_update(const float& dt)
 {
 	_active_scene->update(dt);
+
+	// test physics dont update when game is paused
 	if (_physics_enabled)
 	{
-		Physics::update(Physics::time_step);
+		bool is_paused = false;
+		if (Scenes::kaelinsPlayground && _active_scene == Scenes::kaelinsPlayground)
+		{
+			is_paused = Scenes::kaelinsPlayground->is_paused();
+		}
+
+		if (!is_paused)
+		{
+			Physics::update(Physics::time_step);
+		}
 	}
+
 	Renderer::update(dt);
 }
+
 
 //Draw the game objects
 void GameSystem::_render()
@@ -210,4 +225,8 @@ const std::shared_ptr<Entity>& Scene::make_entity()
 	std::shared_ptr<Entity> entity = std::make_shared<Entity>();
 	_entities.list.push_back(entity);
 	return _entities.list.back();
+}
+sf::RenderWindow& GameSystem::get_window()
+{
+	return *_window;
 }
