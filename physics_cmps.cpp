@@ -754,7 +754,7 @@ void PlayerPhysicsComponent::update(const float& dt)
 	}
 
 
-	/*Delete fireballs
+	//Delete fireballs
 	for (auto& entity : get_entities())
 	{
 		auto components = entity->get_components<FireballComponent>();
@@ -765,21 +765,7 @@ void PlayerPhysicsComponent::update(const float& dt)
 				entity->set_for_delete();
 			}
 		}
-	}*/
-	
-	/*if (get_entities().size() >0) {
-	std::cout << get_entities().size() << "\n";
-		for (int i = 0; i < get_entities().size(); i++)
-		{
-			if (get_entities()[i]->get_components<FireballComponent>()[0]->is_for_deletion())
-			{
-				get_entities()[i]->set_for_delete();
-				get_entities()[i].reset();
-				get_entities().erase(get_entities().begin() + i);
-			}
-		}
-	}*/
-
+	}
 
 
 	PhysicsComponent::update(dt);

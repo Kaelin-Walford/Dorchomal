@@ -174,9 +174,9 @@ void GameSystem::_update(const float& dt)
 	if (_physics_enabled)
 	{
 		bool is_paused = false;
-		if (Scenes::kaelinsPlayground && _active_scene == Scenes::kaelinsPlayground)
+		if (Scenes::levels && _active_scene == Scenes::levels)
 		{
-			is_paused = Scenes::kaelinsPlayground->is_paused();
+			is_paused = Scenes::levels->is_paused();
 		}
 
 		if (!is_paused)

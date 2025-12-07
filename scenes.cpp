@@ -127,7 +127,7 @@ void LevelScenes::update(const float& dt) {
 	}
 	else if (ls::get_tile_at(_player->get_position()) == ls::END && loadLevel2 == true && loadLevel3 == true) {
 		unload();
-		Scenes::creditsScene;
+		GameSystem::set_active_scene(Scenes::creditsScene);
 	}
 
 	// Handle escape to pause
