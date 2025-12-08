@@ -16,6 +16,7 @@ public:
 	static std::shared_ptr<Scene>& get_active_scene() { return _active_scene; }
 	static sf::Vector2i get_mouse_position() { return _mouse_position; }
 	static void change_mouse_visibility(bool visible, sf::RenderWindow* window);
+	static sf::RenderWindow& get_window();
 
 private:
 	static void _init();
@@ -24,6 +25,7 @@ private:
 	static std::shared_ptr<Scene> _active_scene;
 	static bool _physics_enabled;
 	static sf::Vector2i _mouse_position;
+	static sf::RenderWindow* _window;
 };
 
 class Scene

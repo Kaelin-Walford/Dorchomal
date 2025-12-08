@@ -11,7 +11,7 @@ class FireballComponent;
 class PlatformComponent : public Component
 {
 public:
-	PlatformComponent(Entity* p, const std::vector<sf::Vector2i>& tile_group, float friction = 40.f, float restitution = 0.2f);
+	PlatformComponent(Entity* p, const std::vector<sf::Vector2i>& tile_group, float friction = 0.f, float restitution = 0.f);
 	void update(const float& dt) override;
 	void render() override;
 	const b2ChainId& get_chain_id() const;
@@ -22,7 +22,7 @@ protected:
 	b2ChainId _chain_id;
 	float _friction;
 	float _restitution;
-	//void _create_chain_shape(const std::vector<sf::Vector2i> &tile_group);
+	void _create_chain_shape(const std::vector<sf::Vector2i> &tile_group);
 };
 
 //The physics component is the main class that the player and enemy classes will inherit from
@@ -76,6 +76,7 @@ public:
 	bool facing_right;
 
 	bool knockback;
+
 
 	~PhysicsComponent() override;
 protected:

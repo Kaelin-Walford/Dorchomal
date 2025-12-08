@@ -10,7 +10,7 @@
 	sf::SoundBuffer sound_buffer;
 	sound_buffer.loadFromFile(path);
 	_sound_buffers.push_back(sound_buffer);
-	
+
 
 	//Adds the buffer sound to the end of the sound
 	sf::Sound sounds;
@@ -22,6 +22,11 @@
 	_sounds.push_back(sounds);
 	_sounds[_sounds.size() - 1].play();
 }*/
+
+// Define static members
+std::vector<sf::SoundBuffer> AudioSystem::_sound_buffers;
+std::vector<sf::Sound> AudioSystem::_sounds;
+sf::Music AudioSystem::_music;
 
 void AudioSystem::add_sound(char* file)
 {
@@ -53,7 +58,7 @@ const void AudioSystem::load_music(char* file)
 //Plays and pauses the music
 const void AudioSystem::play_pause_music(bool pause)
 {
-	if(pause)
+	if (pause)
 	{
 		_music.play();
 	}
@@ -73,3 +78,15 @@ const sf::SoundSource::Status AudioSystem::is_music_playing()
 	return _music.getStatus();
 }
 
+void AudioSystem::set_music_volume(float volume)
+{
+	_music.setVolume(volume);
+}
+
+void AudioSystem::set_sfx_volume(float volume)
+{
+	for (auto& sound : _sounds)
+	{
+		sound.setVolume(volume);
+	}
+}

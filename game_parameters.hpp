@@ -9,6 +9,13 @@ struct Parameters
 	// gravitational pull
 	static constexpr float g = -9.8f;
 
+	static constexpr float tile_size = 30.0f;
+
+	//levels
+	static constexpr char const* level_1 = "../../../../resources/levels/level_1.txt";
+	static constexpr char const* level_2 = "../../../../resources/levels/level_2.txt";
+	static constexpr char const* level_3 = "../../../../resources/levels/level_3.txt";
+
 	static constexpr float physics_scale = 30.f;// 30 pixels = 1 meter
 	static constexpr float physics_scale_inv = 1.0f / physics_scale;
 

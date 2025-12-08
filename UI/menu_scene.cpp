@@ -1,5 +1,6 @@
 #include "menu_scene.hpp"
 #include "settings_scene.hpp"
+#include "credits_scene.hpp"
 #include "../game_parameters.hpp"
 #include "../engine/renderer.hpp"
 #include "../scenes.hpp"
@@ -59,7 +60,7 @@ void MenuScene::create_main_menu_buttons()
     startBtn->set_callback([this]() {
         std::cout << "Starting game..." << std::endl;
         _menu_state = MenuState::PLAYING;
-        GameSystem::set_active_scene(Scenes::kaelinsPlayground);
+        GameSystem::set_active_scene(Scenes::levels);
         });
     _main_menu_buttons.push_back(std::move(startBtn));
 
@@ -92,7 +93,7 @@ void MenuScene::create_main_menu_buttons()
         });
     _main_menu_buttons.push_back(std::move(settingsBtn));
 
-    // Credits button (placeholder)
+    // Credits button 
     auto creditsBtn = std::make_unique<UIButton>(
         sf::Vector2f(centerX, startY + (buttonHeight + spacing) * buttonIndex++),
         sf::Vector2f(buttonWidth, buttonHeight),
@@ -100,7 +101,12 @@ void MenuScene::create_main_menu_buttons()
         &_font
     );
     creditsBtn->set_callback([this]() {
-        std::cout << "Credits not implemented yet" << std::endl;
+        std::cout << "Opening credits..." << std::endl;
+        if (Scenes::creditsScene) {
+            hide_menus();  // Hide menu buttons
+            Scenes::creditsScene->set_return_scene(Scenes::menuScene);
+            GameSystem::set_active_scene(Scenes::creditsScene);
+        }
         });
     _main_menu_buttons.push_back(std::move(creditsBtn));
 
@@ -137,8 +143,9 @@ void MenuScene::create_pause_menu_buttons()
         std::cout << "Resuming game..." << std::endl;
         _menu_state = MenuState::PLAYING;
         hide_menus();
-        if (Scenes::kaelinsPlayground) {
-            Scenes::kaelinsPlayground->set_paused(false);
+        if (Scenes::levels) {
+            Scenes::levels->set_paused(false);
+            GameSystem::set_active_scene(Scenes::levels);
         }
         });
     _pause_menu_buttons.push_back(std::move(resumeBtn));
@@ -151,13 +158,14 @@ void MenuScene::create_pause_menu_buttons()
         &_font
     );
     restartBtn->set_callback([this]() {
-        std::cout << "Restarting level..." << std::endl;
-        Scenes::kaelinsPlayground->unload();
-        Scenes::kaelinsPlayground->load();
-        _menu_state = MenuState::PLAYING;
-        if (Scenes::kaelinsPlayground) {
-            Scenes::kaelinsPlayground->set_paused(false);
+        std::cout << "Restarting game from Level 1..." << std::endl;
+        if (Scenes::levels) {
+            Scenes::levels->reset_to_level_1();
+            Scenes::levels->set_paused(false);
+            hide_menus();
+            GameSystem::set_active_scene(Scenes::levels);
         }
+        _menu_state = MenuState::PLAYING;
         });
     _pause_menu_buttons.push_back(std::move(restartBtn));
 
@@ -223,9 +231,19 @@ void MenuScene::show_main_menu()
     _menu_state = MenuState::MAIN_MENU;
 }
 
-void MenuScene::show_pause_menu()
+void MenuScene::show_pause_menu(const std::string& level_name)
 {
     _menu_state = MenuState::PAUSED;
+
+    // Update title to show level name
+    if (!level_name.empty())
+    {
+        _title_text.setString("PAUSED - " + level_name);
+    }
+    else
+    {
+        _title_text.setString("PAUSED");
+    }
 }
 
 void MenuScene::hide_menus()
@@ -283,8 +301,8 @@ void MenuScene::handle_event(const sf::Event& event, sf::RenderWindow& window)
 
         if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Escape)
         {
-            if (Scenes::kaelinsPlayground) {
-                Scenes::kaelinsPlayground->toggle_pause();
+            if (Scenes::levels) {
+                Scenes::levels->toggle_pause();
             }
         }
     }
