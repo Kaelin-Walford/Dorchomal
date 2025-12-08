@@ -2,6 +2,7 @@
 #include <SFML/Graphics.hpp>
 #include <functional>
 #include <string>
+#include "../engine/audio_system.hpp"
 
 
 class UISlider
@@ -44,4 +45,9 @@ private:
     // Helper
     void update_visuals();
     float get_percentage() const;
+
+    //Sounds
+    AudioSystem _hover_sound;
+    AudioSystem _click_sound;
+    bool _already_played_sound;
 };

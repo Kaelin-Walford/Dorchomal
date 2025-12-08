@@ -41,6 +41,11 @@ UISlider::UISlider(const sf::Vector2f& position, float width,
     _value_text.setCharacterSize(18);
     _value_text.setFillColor(sf::Color(200, 200, 200));
 
+    //Sounds
+    _hover_sound.add_sound("Hover.wav");
+    _click_sound.add_sound("Click.wav");
+    _already_played_sound = false;
+
     update_visuals();
 }
 
@@ -93,15 +98,28 @@ void UISlider::update(const sf::Vector2i& mousePos, bool mouse_pressed)
 
     _is_hovered = (distance <= 12.f);
 
+    //Plays hover sound when the player first hovers over a button
+    if (_is_hovered && !_already_played_sound && !_is_dragging)
+    {
+        _already_played_sound = true;
+        _hover_sound.play_sound();
+    }
+    else if (!_is_hovered)
+    {
+        _already_played_sound = false;
+    }
+
     // Start dragging
     if (_is_hovered && mouse_pressed && !_is_dragging)
     {
+        _click_sound.play_sound();
         _is_dragging = true;
     }
 
     // Stop dragging
-    if (!mouse_pressed)
+    if (!mouse_pressed && _is_dragging)
     {
+        _click_sound.play_sound();
         _is_dragging = false;
     }
 

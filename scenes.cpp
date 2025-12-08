@@ -108,6 +108,9 @@ void LevelScenes::_load_level(const std::string& file_path) {
 
 	_enemies.push_back(_enemy);
 	_enemies.push_back(_test);
+
+	//Sounds
+	_player_damage_sound.add_sound("Damage.wav");
 }
 
 void LevelScenes::update(const float& dt) {
@@ -193,6 +196,7 @@ void LevelScenes::update(const float& dt) {
 					{
 						//reduce health and apply knockback
 						player[0]->reduce_health(1);
+						_player_damage_sound.play_sound();
 						for (int i = 0; i < _enemies.size(); i++)
 						{
 							if ((!strcmp(shape_1, (char*)_enemies[i]->get_components<EnemyAttackComponent>()[0]->get_shape_user_data()) || (!strcmp(shape_2, (char*)_enemies[i]->get_components<EnemyAttackComponent>()[0]->get_shape_user_data()))))
@@ -213,7 +217,7 @@ void LevelScenes::update(const float& dt) {
 					{
 						//reduce health
 						player[0]->reduce_health(1);
-						std::cerr << "PLAYER HURT" << std::endl;
+						_player_damage_sound.play_sound();
 					}
 				}
 			}
@@ -310,6 +314,7 @@ void LevelScenes::update(const float& dt) {
 			{
 				if (_enemies[i]->get_components<EnemyAttackComponent>()[0]->in_range_of_player && _enemies[i]->get_components<EnemyAttackComponent>()[0]->attacking)
 				{
+					_player_damage_sound.play_sound();
 					player[0]->reduce_health(2);
 					player_knockback(i);
 				}
