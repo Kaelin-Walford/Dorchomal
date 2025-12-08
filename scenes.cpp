@@ -111,7 +111,7 @@ void LevelScenes::_load_level(const std::string& file_path) {
 }
 
 void LevelScenes::update(const float& dt) {
-	Scene::update(dt);
+	//Scene::update(dt);
 	_entities.update(dt);
 	if (ls::get_tile_at(_player->get_position()) == ls::END && loadLevel2 == false && loadLevel3 == false) {
 		unload();
@@ -122,11 +122,12 @@ void LevelScenes::update(const float& dt) {
 		unload();
 		_load_level(param::level_3);
 		loadLevel3 = true;
-		std::cerr << loadLevel2 << std::endl;
-		std::cerr << loadLevel3 << std::endl;
 	}
 	else if (ls::get_tile_at(_player->get_position()) == ls::END && loadLevel2 == true && loadLevel3 == true) {
-		unload();
+		// Set return scene BEFORE switching to credits (prevents crash)
+		if (Scenes::creditsScene) {
+			Scenes::creditsScene->set_return_scene(Scenes::menuScene);
+		}
 		GameSystem::set_active_scene(Scenes::creditsScene);
 	}
 
