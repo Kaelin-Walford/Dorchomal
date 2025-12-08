@@ -78,36 +78,48 @@ void LevelScenes::_load_level(const std::string& file_path) {
 		_walls.back()->add_component<PlatformComponent>(walls);
 	}
 
-	//Create an enemy
-	std::shared_ptr<Entity> _enemy = make_entity();
-	_enemy->set_position(sf::Vector2f(1800, 700));
+	//Create an enemy melee
+	std::shared_ptr<Entity> melee = make_entity();
+	melee->set_position(sf::Vector2f(1800, 700));
 
-	std::shared_ptr<ShapeComponent> shapew = _enemy->add_component<ShapeComponent>();
-	shapew->set_shape<sf::RectangleShape>(sf::Vector2f(param::enemy_size[0], param::enemy_size[1]));
-	shapew->get_shape().setFillColor(sf::Color::Red);
-	shapew->get_shape().setOrigin(sf::Vector2f(param::enemy_size[0] / 2.f, param::enemy_size[1] / 2.f));
+	std::shared_ptr<ShapeComponent> melee_shape = melee->add_component<ShapeComponent>();
+	melee_shape->set_shape<sf::RectangleShape>(sf::Vector2f(param::enemy_size[0], param::enemy_size[1]));
+	melee_shape->get_shape().setFillColor(sf::Color::Red);
+	melee_shape->get_shape().setOrigin(sf::Vector2f(param::enemy_size[0] / 2.f, param::enemy_size[1] / 2.f));
 
-	std::shared_ptr<EnemyAttackComponent> ecmp = _enemy->add_component<EnemyAttackComponent>(_player.get(), sf::Vector2f(param::player_size[0], param::player_size[1]), 2);
+	std::shared_ptr<EnemyAttackComponent> ecmp = melee->add_component<EnemyAttackComponent>(_player.get(), sf::Vector2f(param::player_size[0], param::player_size[1]), 2);
 	ecmp->create_capsule_shape(sf::Vector2f(param::player_size[0], param::player_size[1]), param::player_weight, param::player_friction, param::player_restitution, -2, "1");
 
-	//test
-	//Create an enemy
-	std::shared_ptr<Entity> _test = make_entity();
-	_test->set_position(sf::Vector2f(1000, 600));
+	//Create an enemy ranged
+	std::shared_ptr<Entity> ranged = make_entity();
+	ranged->set_position(sf::Vector2f(1000, 600));
 
-	std::shared_ptr<ShapeComponent> shapet = _test->add_component<ShapeComponent>();
-	shapet->set_shape<sf::RectangleShape>(sf::Vector2f(param::enemy_size[0], param::enemy_size[1]));
-	shapet->get_shape().setFillColor(sf::Color::Red);
-	shapet->get_shape().setOrigin(sf::Vector2f(param::enemy_size[0] / 2.f, param::enemy_size[1] / 2.f));
+	std::shared_ptr<ShapeComponent> ranged_shape = ranged->add_component<ShapeComponent>();
+	ranged_shape->set_shape<sf::RectangleShape>(sf::Vector2f(param::enemy_size[0], param::enemy_size[1]));
+	ranged_shape->get_shape().setFillColor(sf::Color::Red);
+	ranged_shape->get_shape().setOrigin(sf::Vector2f(param::enemy_size[0] / 2.f, param::enemy_size[1] / 2.f));
 
-	std::shared_ptr<EnemyAttackComponent> tcmp = _test->add_component<EnemyAttackComponent>(_player.get(), sf::Vector2f(param::player_size[0], param::player_size[1]), 3);
-	tcmp->create_capsule_shape(sf::Vector2f(param::player_size[0], param::player_size[1]), param::player_weight, param::player_friction, param::player_restitution, -2, "2");
+	std::shared_ptr<EnemyAttackComponent> ranged_cmp = ranged->add_component<EnemyAttackComponent>(_player.get(), sf::Vector2f(param::player_size[0], param::player_size[1]), 3);
+	ranged_cmp->create_capsule_shape(sf::Vector2f(param::player_size[0], param::player_size[1]), param::player_weight, param::player_friction, param::player_restitution, -2, "2");
+
+	//Create an chaser melee
+	std::shared_ptr<Entity> chaser = make_entity();
+	chaser->set_position(sf::Vector2f(1300, 800));
+
+	std::shared_ptr<ShapeComponent> chaser_shape = chaser->add_component<ShapeComponent>();
+	chaser_shape->set_shape<sf::RectangleShape>(sf::Vector2f(param::enemy_size[0], param::enemy_size[1]));
+	chaser_shape->get_shape().setFillColor(sf::Color::Red);
+	chaser_shape->get_shape().setOrigin(sf::Vector2f(param::enemy_size[0] / 2.f, param::enemy_size[1] / 2.f));
+
+	std::shared_ptr<EnemyAttackComponent> chaser_cmp = chaser->add_component<EnemyAttackComponent>(_player.get(), sf::Vector2f(param::player_size[0], param::player_size[1]), 1);
+	chaser_cmp->create_capsule_shape(sf::Vector2f(param::player_size[0], param::player_size[1]), param::player_weight, param::player_friction, param::player_restitution, -2, "1");
 
 	player_user_data = playerPhysics->get_user_data();
 	enemy_user_data = ecmp->get_user_data();
 
-	_enemies.push_back(_enemy);
-	_enemies.push_back(_test);
+	_enemies.push_back(melee);
+	_enemies.push_back(ranged);
+	_enemies.push_back(chaser);
 
 	//Sounds
 	_player_damage_sound.add_sound("Damage.wav");

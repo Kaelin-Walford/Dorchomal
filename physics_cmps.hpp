@@ -11,7 +11,7 @@ class FireballComponent;
 class PlatformComponent : public Component
 {
 public:
-	PlatformComponent(Entity* p, const std::vector<sf::Vector2i>& tile_group, float friction = 40.f, float restitution = 0.2f);
+	PlatformComponent(Entity* p, const std::vector<sf::Vector2i>& tile_group, float friction = 0.f, float restitution = 0.f);
 	void update(const float& dt) override;
 	void render() override;
 	const b2ChainId& get_chain_id() const;
