@@ -158,13 +158,14 @@ void MenuScene::create_pause_menu_buttons()
         &_font
     );
     restartBtn->set_callback([this]() {
-        std::cout << "Restarting level..." << std::endl;
-        Scenes::levels->unload();
-        Scenes::levels->load();
-        _menu_state = MenuState::PLAYING;
+        std::cout << "Restarting game from Level 1..." << std::endl;
         if (Scenes::levels) {
+            Scenes::levels->reset_to_level_1();
             Scenes::levels->set_paused(false);
+            hide_menus();
+            GameSystem::set_active_scene(Scenes::levels);
         }
+        _menu_state = MenuState::PLAYING;
         });
     _pause_menu_buttons.push_back(std::move(restartBtn));
 

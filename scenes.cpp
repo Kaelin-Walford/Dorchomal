@@ -153,9 +153,13 @@ void LevelScenes::update(const float& dt) {
 		//restarts the scene if its set to restart
 		if (scene_restart)
 		{
+			// Reset level flags to go back to level 1
+			loadLevel2 = false;
+			loadLevel3 = false;
+
 			unload();
 			load();
-			std::cerr << "SCENE RESTARTED" << std::endl;
+			std::cerr << "SCENE RESTARTED - Back to Level 1" << std::endl;
 			scene_restart = false;
 		}
 		else
@@ -442,6 +446,18 @@ void LevelScenes::toggle_pause()
 			GameSystem::set_active_scene(Scenes::levels);
 		}
 	}
+}
+
+void LevelScenes::reset_to_level_1() {
+	// Reset level flags to go back to level 1
+	extern bool loadLevel2;
+	extern bool loadLevel3;
+	loadLevel2 = false;
+	loadLevel3 = false;
+
+	// Unload current level and load level 1
+	unload();
+	load();
 }
 
 void LevelScenes::unload() {

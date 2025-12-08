@@ -13,6 +13,7 @@ public:
 	void toggle_pause();
 	bool is_paused() const { return _is_paused; }
 	void set_paused(bool paused) { _is_paused = paused; }
+	void reset_to_level_1();  
 
 	void set_current_level(const std::string& level_name) { _current_level_name = level_name; }
 	std::string get_current_level() const { return _current_level_name; }

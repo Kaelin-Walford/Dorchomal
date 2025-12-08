@@ -60,21 +60,32 @@ void CreditsScene::create_credits_text()
     add_line("GAME DEVELOPMENT", 36, sf::Color::Yellow, 80);
     add_line("Developers", 24, sf::Color::White, 60);
     add_line("40650381, 40664564, 40652155", 22, sf::Color(150, 255, 150), 100, true);
-    add_line("Game Audio", 24, sf::Color::White, 60);
+    
+    add_line("Engine System & Physics", 24, sf::Color::White, 60);
     add_line("40650381", 22, sf::Color(150, 255, 150), 100, true);
-    add_line("Game Level Design", 24, sf::Color::White, 60);
+    
+    add_line("UI, Settings & Menus", 24, sf::Color::White, 60);
+    add_line("40664564", 22, sf::Color(150, 255, 150), 100, true);
+    
+    add_line("Level Design & Assets", 24, sf::Color::White, 60);
     add_line("40652155", 22, sf::Color(150, 255, 150), 150, true);
+    
     add_line("TECHNICAL", 36, sf::Color::Yellow, 80);
-    add_line("Engine Architecture", 24, sf::Color::White, 60);
-    add_line("40664564", 22, sf::Color(150, 255, 150), 50, true);
-    add_line("Entity Component System", 20, sf::Color(200, 200, 200), 50);
-    add_line("Custom Physics Integration", 20, sf::Color(200, 200, 200), 100);
-    add_line("UI System Design", 24, sf::Color::White, 60);
-    add_line("40664564", 22, sf::Color(150, 255, 150), 50, true);
-    add_line("Menu System", 20, sf::Color(200, 200, 200), 50);
-    add_line("Settings Management", 20, sf::Color(200, 200, 200), 100);
-    add_line("Audio Controls", 24, sf::Color::White, 60);
-    add_line("40650381, 40664564", 22, sf::Color(150, 255, 150), 150, true);
+    add_line("Entity Component System", 24, sf::Color::White, 60);
+    add_line("40650381", 22, sf::Color(150, 255, 150), 100, true);
+    
+    add_line("Custom Physics Integration", 24, sf::Color::White, 60);
+    add_line("40650381", 22, sf::Color(150, 255, 150), 100, true);
+    
+    add_line("Menu & Settings System", 24, sf::Color::White, 60);
+    add_line("40664564", 22, sf::Color(150, 255, 150), 100, true);
+    
+    add_line("Audio System", 24, sf::Color::White, 60);
+    add_line("40650381, 40664564", 22, sf::Color(150, 255, 150), 100, true);
+    
+    add_line("Game Levels & Environment", 24, sf::Color::White, 60);
+    add_line("40652155", 22, sf::Color(150, 255, 150), 150, true);
+    
     add_line("BUILT WITH", 36, sf::Color::Yellow, 80);
     add_line("SFML 2.6.2", 28, sf::Color::Cyan, 50);
     add_line("Simple and Fast Multimedia Library", 20, sf::Color(150, 200, 255), 90);
@@ -187,7 +198,9 @@ void CreditsScene::handle_event(const sf::Event& event, sf::RenderWindow& window
 {
     if (event.type == sf::Event::KeyPressed)
     {
-        if (event.key.code == sf::Keyboard::Escape)
+        if (event.key.code == sf::Keyboard::Escape || 
+            event.key.code == sf::Keyboard::Enter || 
+            event.key.code == sf::Keyboard::Return)
         {
             if (_return_scene) {
                 if (Scenes::menuScene) {
