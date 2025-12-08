@@ -22,10 +22,12 @@ public:
 
 private:
     sf::Font _font;
+    sf::Font _number_font;
     sf::RectangleShape _overlay;
 
     // Credits text
     std::vector<sf::Text> _credits_lines;
+    std::vector<float> _base_positions;
     float _scroll_position;
     float _scroll_speed;
     bool _auto_scroll;

@@ -10,13 +10,11 @@
 #include <cmath>
 #include "audio_system.hpp"
 
+#include "UI/game_settings.hpp"
 using param = Parameters;
 using ph = Physics;
-//using ls = LevelSystem;
+using ls = LevelSystem;
 
-std::vector<sf::SoundBuffer> AudioSystem::_sound_buffers;
-std::vector<sf::Sound> AudioSystem::_sounds;
-sf::Music AudioSystem::_music;
 
 /*
 *	Platform Component
@@ -31,7 +29,7 @@ PlatformComponent::PlatformComponent(Entity* p, const std::vector<sf::Vector2i>&
 	body_def.type = b2_staticBody;
 	//Create the body
 	_body_id = b2CreateBody(ph::get_world_id(), &body_def);
-	//_create_chain_shape(tile_group);
+	_create_chain_shape(tile_group);
 }
 void PlatformComponent::update(const float& dt) {}
 void PlatformComponent::render() {}
@@ -45,65 +43,64 @@ PlatformComponent::~PlatformComponent()
 	_body_id = b2_nullBodyId;
 }
 
-//This is commented out as it requires the level_system.cpp
-/*
-void PlatformComponent::_create_chain_shape(const std::vector<sf::Vector2i> &tile_group){
+
+void PlatformComponent::_create_chain_shape(const std::vector<sf::Vector2i>& tile_group) {
 	std::vector<b2Vec2> points;
-	for(int i = 0; i < tile_group.size(); i++){
-		const sf::Vector2i &tile = tile_group[i];
+	for (int i = 0; i < tile_group.size(); i++) {
+		const sf::Vector2i& tile = tile_group[i];
 		std::vector<ls::Tile> neighbors = {
-			ls::in_group({tile.x-1,tile.y-1},tile_group) ? ls::get_tile({tile.x-1,tile.y-1}) : ls::EMPTY,
-			ls::in_group({tile.x,tile.y-1},tile_group) ? ls::get_tile({tile.x,tile.y-1}) : ls::EMPTY,
-			ls::in_group({tile.x+1,tile.y-1},tile_group) ? ls::get_tile({tile.x+1,tile.y-1}) : ls::EMPTY,
-			ls::in_group({tile.x+1,tile.y},tile_group) ? ls::get_tile({tile.x+1,tile.y}) : ls::EMPTY,
-			ls::in_group({tile.x+1,tile.y+1},tile_group) ? ls::get_tile({tile.x+1,tile.y+1}) : ls::EMPTY,
-			ls::in_group({tile.x,tile.y+1},tile_group) ? ls::get_tile({tile.x,tile.y+1}) : ls::EMPTY,
-			ls::in_group({tile.x-1,tile.y+1},tile_group) ? ls::get_tile({tile.x-1,tile.y+1}) : ls::EMPTY,
-			ls::in_group({tile.x-1,tile.y},tile_group) ? ls::get_tile({tile.x-1,tile.y}) : ls::EMPTY
+			ls::in_group({tile.x - 1,tile.y - 1},tile_group) ? ls::get_tile(sf::Vector2i(tile.x - 1,tile.y - 1)) : ls::EMPTY,
+			ls::in_group({tile.x,tile.y - 1},tile_group) ? ls::get_tile(sf::Vector2i(tile.x,tile.y - 1)) : ls::EMPTY,
+			ls::in_group({tile.x + 1,tile.y - 1},tile_group) ? ls::get_tile(sf::Vector2i(tile.x + 1,tile.y - 1)) : ls::EMPTY,
+			ls::in_group({tile.x + 1,tile.y},tile_group) ? ls::get_tile(sf::Vector2i(tile.x + 1,tile.y)) : ls::EMPTY,
+			ls::in_group({tile.x + 1,tile.y + 1},tile_group) ? ls::get_tile(sf::Vector2i(tile.x + 1,tile.y + 1)) : ls::EMPTY,
+			ls::in_group({tile.x,tile.y + 1},tile_group) ? ls::get_tile(sf::Vector2i(tile.x,tile.y + 1)) : ls::EMPTY,
+			ls::in_group({tile.x - 1,tile.y + 1},tile_group) ? ls::get_tile(sf::Vector2i(tile.x - 1,tile.y + 1)) : ls::EMPTY,
+			ls::in_group({tile.x - 1,tile.y},tile_group) ? ls::get_tile(sf::Vector2i(tile.x - 1,tile.y)) : ls::EMPTY
 		};
 		sf::Vector2f pos = ls::get_tile_position(tile);
 
 		std::vector<sf::Vector2f> pts;
-		if(neighbors[0] == ls::EMPTY || neighbors[1] == ls::EMPTY || neighbors[7] == ls::EMPTY)
+		if (neighbors[0] == ls::EMPTY || neighbors[1] == ls::EMPTY || neighbors[7] == ls::EMPTY)
 			pts.push_back(pos);
-		if(neighbors[1] == ls::EMPTY || neighbors[2] == ls::EMPTY || neighbors[3] == ls::EMPTY)
-			pts.push_back({pos.x+param::tile_size,pos.y});
-		if(neighbors[3] == ls::EMPTY || neighbors[4] == ls::EMPTY || neighbors[5] == ls::EMPTY)
-			pts.push_back({pos.x+param::tile_size,pos.y+param::tile_size});
-		if(neighbors[5] == ls::EMPTY || neighbors[6] == ls::EMPTY || neighbors[7] == ls::EMPTY)
-			pts.push_back({pos.x,pos.y+param::tile_size});
+		if (neighbors[1] == ls::EMPTY || neighbors[2] == ls::EMPTY || neighbors[3] == ls::EMPTY)
+			pts.push_back({ pos.x + param::tile_size,pos.y });
+		if (neighbors[3] == ls::EMPTY || neighbors[4] == ls::EMPTY || neighbors[5] == ls::EMPTY)
+			pts.push_back({ pos.x + param::tile_size,pos.y + param::tile_size });
+		if (neighbors[5] == ls::EMPTY || neighbors[6] == ls::EMPTY || neighbors[7] == ls::EMPTY)
+			pts.push_back({ pos.x,pos.y + param::tile_size });
 
-		for(const sf::Vector2f &pt: pts){
-			b2Vec2 point = ph::sv2_to_bv2(ph::invert_height(pt,param::game_height));
+		for (const sf::Vector2f& pt : pts) {
+			b2Vec2 point = ph::sv2_to_bv2(ph::invert_height(pt, param::game_height));
 			bool already_in = false;
-			for(const b2Vec2 &p : points){
-				if(p.x == point.x && p.y == point.y){
+			for (const b2Vec2& p : points) {
+				if (p.x == point.x && p.y == point.y) {
 					already_in = true;
 					break;
 				}
 			}
-			if(!already_in)
+			if (!already_in)
 				points.push_back(point);
 		}
 	}
-	b2Vec2 centroid = {0,0};
-	for(const b2Vec2 pt: points){
+	b2Vec2 centroid = { 0,0 };
+	for (const b2Vec2 pt : points) {
 		centroid.x += pt.x;
 		centroid.y += pt.y;
 	}
 	centroid.x /= static_cast<float>(points.size());
 	centroid.y /= static_cast<float>(points.size());
 	//order the list of points in counter clockwise.
-	std::sort(points.begin(),points.end(),[&](b2Vec2 a, b2Vec2 b){
-		a = {a.x-centroid.x,a.y-centroid.y};
-		b = {b.x-centroid.x,b.y-centroid.y};
-		float angle1 = std::atan2(a.x,a.y);
-		float angle2 = std::atan2(b.x,b.y);
-		if(angle1==angle2)
-			return std::sqrt(a.x*a.x+a.y*a.y)>std::sqrt(b.x*b.x+b.y*b.y);
+	std::sort(points.begin(), points.end(), [&](b2Vec2 a, b2Vec2 b) {
+		a = { a.x - centroid.x,a.y - centroid.y };
+		b = { b.x - centroid.x,b.y - centroid.y };
+		float angle1 = std::atan2(a.x, a.y);
+		float angle2 = std::atan2(b.x, b.y);
+		if (angle1 == angle2)
+			return std::sqrt(a.x * a.x + a.y * a.y) > std::sqrt(b.x * b.x + b.y * b.y);
 		else
-			return angle1>angle2;
-	});
+			return angle1 > angle2;
+		});
 	points.push_back(points.front());
 
 	b2SurfaceMaterial material = b2DefaultSurfaceMaterial();
@@ -115,11 +112,11 @@ void PlatformComponent::_create_chain_shape(const std::vector<sf::Vector2i> &til
 	chain_def.isLoop = true;
 	chain_def.materials = &material;
 	chain_def.materialCount = 1;
-	_chain_id = b2CreateChain(_body_id,&chain_def);
+	_chain_id = b2CreateChain(_body_id, &chain_def);
 	std::vector<b2ShapeId> shape_ids(points.size());
-	int nbr_seg = b2Chain_GetSegments(_chain_id,shape_ids.data(),points.size());
+	int nbr_seg = b2Chain_GetSegments(_chain_id, shape_ids.data(), points.size());
 	shape_ids.size();
-}*/
+}
 
 /*
 *	Physics Component
@@ -234,12 +231,12 @@ const b2ShapeId& PhysicsComponent::get_shape_id() const { return _shape_id; }
 //The physics component destructor
 PhysicsComponent::~PhysicsComponent()
 {
-	if(!_shape_destroyed && b2Shape_IsValid(_attack_hitbox_shape_id))
+	if (!_shape_destroyed && b2Shape_IsValid(_attack_hitbox_shape_id))
 	{
 		b2DestroyShape(_attack_hitbox_shape_id, true);
 		_attack_hitbox_shape_id = b2_nullShapeId;
 	}
-	if(b2Shape_IsValid(_shape_id))
+	if (b2Shape_IsValid(_shape_id))
 	{
 		b2DestroyShape(_shape_id, true);
 		_shape_id = b2_nullShapeId;
@@ -537,6 +534,7 @@ PlayerPhysicsComponent::PlayerPhysicsComponent(Entity* p, const sf::Vector2f& si
 
 void PlayerPhysicsComponent::update(const float& dt)
 {
+	auto& settings = GameSettings::get_instance();
 	const sf::Vector2f pos = _parent->get_position();
 	b2Vec2 b2_pos = ph::sv2_to_bv2(ph::invert_height(pos, param::game_height));
 
@@ -583,14 +581,14 @@ void PlayerPhysicsComponent::update(const float& dt)
 		}
 
 		//Handles left and right movement
-		if (sf::Keyboard::isKeyPressed(param::move_left) || sf::Keyboard::isKeyPressed(param::move_right))
+		if (sf::Keyboard::isKeyPressed(settings.key_move_left) || sf::Keyboard::isKeyPressed(settings.key_move_right))
 		{
 			if (get_gravity_scale() == 0)
 			{
 				set_gravity_scale(1);
 			}
 			// Moving Either Left or Right
-			if (sf::Keyboard::isKeyPressed(param::move_right))
+			if (sf::Keyboard::isKeyPressed(settings.key_move_right))
 			{
 				set_velocity(sf::Vector2f(_ground_speed, get_velocity().y));
 				if (!facing_right)
@@ -657,43 +655,43 @@ void PlayerPhysicsComponent::update(const float& dt)
 		//Handles the dash
 		if (_can_dash)
 		{
-			if (sf::Keyboard::isKeyPressed(param::move_dash))
+			if (sf::Keyboard::isKeyPressed(settings.key_dash))
 			{
 				//Play dash sound
 				_dash_sound.play_sound();
 
 				//angle dashes if the user presses multiple directions
-				if (sf::Keyboard::isKeyPressed(param::move_left) && sf::Keyboard::isKeyPressed(param::look_up))
+				if (sf::Keyboard::isKeyPressed(settings.key_move_left) && sf::Keyboard::isKeyPressed(settings.key_look_up))
 				{
 					dash(false, true);
 				}
-				else if (sf::Keyboard::isKeyPressed(param::move_left) && sf::Keyboard::isKeyPressed(param::look_down))
+				else if (sf::Keyboard::isKeyPressed(settings.key_move_left) && sf::Keyboard::isKeyPressed(settings.key_look_down))
 				{
 					dash(false, false);
 				}
-				else if (sf::Keyboard::isKeyPressed(param::move_right) && sf::Keyboard::isKeyPressed(param::look_up))
+				else if (sf::Keyboard::isKeyPressed(settings.key_move_right) && sf::Keyboard::isKeyPressed(settings.key_look_up))
 				{
 					dash(true, true);
 				}
-				else if (sf::Keyboard::isKeyPressed(param::move_right) && sf::Keyboard::isKeyPressed(param::look_down))
+				else if (sf::Keyboard::isKeyPressed(settings.key_move_right) && sf::Keyboard::isKeyPressed(settings.key_look_down))
 				{
 					dash(true, false);
 				}
 
 				//dashes in one directions
-				else if (sf::Keyboard::isKeyPressed(param::look_up))
+				else if (sf::Keyboard::isKeyPressed(settings.key_look_up))
 				{
 					set_velocity(sf::Vector2f(get_velocity().x, param::dash_speed));
 				}
-				else if (sf::Keyboard::isKeyPressed(param::move_right))
+				else if (sf::Keyboard::isKeyPressed(settings.key_move_right))
 				{
 					set_velocity(sf::Vector2f(param::dash_speed, get_velocity().y));
 				}
-				else if (sf::Keyboard::isKeyPressed(param::look_down))
+				else if (sf::Keyboard::isKeyPressed(settings.key_look_down))
 				{
 					set_velocity(sf::Vector2f(get_velocity().x, -param::dash_speed));
 				}
-				else if (sf::Keyboard::isKeyPressed(param::move_left))
+				else if (sf::Keyboard::isKeyPressed(settings.key_move_left))
 				{
 					set_velocity(sf::Vector2f(-param::dash_speed, get_velocity().y));
 				}
@@ -713,7 +711,7 @@ void PlayerPhysicsComponent::update(const float& dt)
 		}
 
 		// Handle Jump
-		if (sf::Keyboard::isKeyPressed(param::move_jump))
+		if (sf::Keyboard::isKeyPressed(settings.key_jump))
 		{
 			if (_grounded)
 			{
@@ -723,12 +721,12 @@ void PlayerPhysicsComponent::update(const float& dt)
 		}
 
 		// Handle Fireball
-		if (sf::Keyboard::isKeyPressed(param::attack_fire_ball))
+		if (sf::Keyboard::isKeyPressed(settings.key_fireball))
 		{
 			//Displays the target on the screen
 			_target->set_visible(true);
 			_target->set_position(sf::Vector2f(GameSystem::get_mouse_position()));
-			if (sf::Mouse::isButtonPressed(param::attack_fire_ball_fire) && _can_use_fireball)
+			if (sf::Mouse::isButtonPressed(settings.mouse_fireball) && _can_use_fireball)
 			{
 				//play fireball sound
 				_fireball_sound.play_sound();
@@ -745,7 +743,7 @@ void PlayerPhysicsComponent::update(const float& dt)
 		}
 
 		//Handle Melee Attack
-		if (sf::Keyboard::isKeyPressed(param::attack_melee))
+		if (sf::Keyboard::isKeyPressed(settings.key_melee))
 		{
 			if (_can_attack)
 			{
@@ -775,7 +773,6 @@ void PlayerPhysicsComponent::update(const float& dt)
 
 	//Delete fireballs
 	delete_fireballs();
-
 
 
 	PhysicsComponent::update(dt);
@@ -943,7 +940,7 @@ void EnemyAttackComponent::update(const float& dt)
 
 	if (!knockback)
 	{
-		if(!_is_asleep)
+		if (!_is_asleep)
 		{
 			if (_enemy_type == 2)
 			{
@@ -1080,7 +1077,7 @@ void EnemyAttackComponent::update(const float& dt)
 		PhysicsComponent::update(dt);
 		return; // Don't do any other behavior while asleep
 	}
-	else if(!knockback)
+	else if (!knockback)
 	{
 		//plays damage sound if health is less than previous frame
 		if (_health < _previous_health)
@@ -1233,7 +1230,7 @@ bool EnemyAttackComponent::x_distance(int distance)
 		return false;
 	}
 }
-	
+
 
 // Render the ZZZ text if asleep
 void EnemyAttackComponent::render()

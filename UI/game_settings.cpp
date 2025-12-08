@@ -1,3 +1,6 @@
+#include "../engine/audio_system.hpp"
+#include "../engine/game_system.hpp"
+#include "../engine/renderer.hpp"
 #include "game_settings.hpp"
 #include <fstream>
 #include <iostream>
@@ -49,8 +52,11 @@ std::string GameSettings::get_mouse_button_name(sf::Mouse::Button button)
     }
 }
 
-void GameSettings::apply_display_settings(sf::RenderWindow& window)
+
+void GameSettings::apply_display_settings()
 {
+    sf::RenderWindow& window = GameSystem::get_window();
+
     // resolution and fullscreen
     sf::VideoMode mode(resolution_width, resolution_height);
 
@@ -66,25 +72,32 @@ void GameSettings::apply_display_settings(sf::RenderWindow& window)
     // Apply VSync
     window.setVerticalSyncEnabled(vsync);
 
-    // Apply FPS limit
-    if (fps_limit > 0)
-    {
-        window.setFramerateLimit(fps_limit);
-    }
-    else
-    {
-        window.setFramerateLimit(0); // Unlimited
-    }
+
+    // Re-initialize renderer with new window
+    Renderer::initialise(window);
 }
+
 
 void GameSettings::apply_audio_settings()
 {
-    // audio system when we have one
+    if (!audio_enabled)
+    {
+        AudioSystem::set_music_volume(0);
+        AudioSystem::set_sfx_volume(0);
+        std::cout << "Audio muted" << std::endl;
+        return;
+    }
+
+    // Calculate actual volumes (Master × Specific ÷ 100)
+    float actual_music = (master_volume * music_volume) / 100.0f;
+    float actual_sfx = (master_volume * sfx_volume) / 100.0f;
+
+    AudioSystem::set_music_volume(actual_music);
+    AudioSystem::set_sfx_volume(actual_sfx);
+
     std::cout << "Audio settings applied:" << std::endl;
-    std::cout << "  Master: " << master_volume << "%" << std::endl;
-    std::cout << "  Music: " << music_volume << "%" << std::endl;
-    std::cout << "  SFX: " << sfx_volume << "%" << std::endl;
-    std::cout << "  Enabled: " << (audio_enabled ? "Yes" : "No") << std::endl;
+    std::cout << "  Music: " << actual_music << "%" << std::endl;
+    std::cout << "  SFX: " << actual_sfx << "%" << std::endl;
 }
 
 bool GameSettings::save_to_file(const std::string& filename)
@@ -110,8 +123,6 @@ bool GameSettings::save_to_file(const std::string& filename)
     file << "resolution_width=" << resolution_width << std::endl;
     file << "resolution_height=" << resolution_height << std::endl;
     file << "vsync=" << vsync << std::endl;
-    file << "show_fps=" << show_fps << std::endl;
-    file << "fps_limit=" << fps_limit << std::endl;
     file << std::endl;
 
     // Control settings
@@ -176,8 +187,6 @@ bool GameSettings::load_from_file(const std::string& filename)
             else if (key == "resolution_width") resolution_width = std::stoi(value);
             else if (key == "resolution_height") resolution_height = std::stoi(value);
             else if (key == "vsync") vsync = (value == "1");
-            else if (key == "show_fps") show_fps = (value == "1");
-            else if (key == "fps_limit") fps_limit = std::stoi(value);
 
             // Control settings
             else if (key == "key_move_left") key_move_left = static_cast<sf::Keyboard::Key>(std::stoi(value));
@@ -213,8 +222,6 @@ void GameSettings::reset_to_defaults()
     resolution_width = 1920;
     resolution_height = 1080;
     vsync = true;
-    show_fps = false;
-    fps_limit = 60;
     current_resolution_index = 0;
 
     // Control defaults

@@ -10,7 +10,7 @@ class UISlider
 public:
     UISlider(const sf::Vector2f& position, float width,
         float min_value, float max_value, float current_value,
-        const std::string& label, sf::Font* font);
+        const std::string& label, sf::Font* font, sf::Font* number_font = nullptr);
 
     void update(const sf::Vector2i& mousePos, bool mouse_pressed);
     void render(sf::RenderWindow& window);

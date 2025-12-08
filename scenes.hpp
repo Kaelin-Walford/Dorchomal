@@ -3,24 +3,9 @@
 #include <box2d/box2d.h>
 #include "audio_system.hpp"
 
-class PhysicsScene : public Scene
-{
-private:
-	b2WorldId world_id;
-	std::vector<b2BodyId> bodies;
-	std::vector<std::shared_ptr<sf::RectangleShape>> sprites;
+class LevelScenes : public Scene {
 public:
-	PhysicsScene() = default;
-	void update(const float& dt) override;
-	void render() override;
-	void load()override;
-	void unload() override;
-};
-
-class KaelinsPlayground : public Scene
-{
-public:
-	KaelinsPlayground() = default;
+	LevelScenes() = default;
 	void update(const float& dt) override;
 	void render() override;
 	void load()override;
@@ -29,7 +14,10 @@ public:
 	void toggle_pause();
 	bool is_paused() const { return _is_paused; }
 	void set_paused(bool paused) { _is_paused = paused; }
+	void reset_to_level_1();  
 
+	void set_current_level(const std::string& level_name) { _current_level_name = level_name; }
+	std::string get_current_level() const { return _current_level_name; }
 	//Collision functions
 	void find_which_enemy_to_damage(char* shape_1, char* shape_2);
 	void find_which_enemy_is_in_range(char* visitor_shape, bool in_range);
@@ -44,9 +32,12 @@ private:
 	std::vector<b2BodyId> bodies;
 	std::vector<std::shared_ptr<sf::RectangleShape>> sprites;
 	std::shared_ptr<Entity> _player;
+	std::vector<std::shared_ptr<Entity>> _walls;
+	void _load_level(const std::string& file_path);
 	bool _is_paused = false;
 	std::vector<std::shared_ptr<Entity>> _enemies;
 	int timer = 0;
+	std::string _current_level_name;
 	bool scene_restart;
 
 	//User data for the bodies in the scene
@@ -65,8 +56,8 @@ class CreditsScene;
 struct Scenes
 {
 	static std::shared_ptr<Scene> physics;
-	static std::shared_ptr<KaelinsPlayground> kaelinsPlayground;
 	static std::shared_ptr<MenuScene> menuScene;
 	static std::shared_ptr<SettingsScene> settingsScene;
 	static std::shared_ptr<CreditsScene> creditsScene;
+	static std::shared_ptr<LevelScenes> levels;
 };
